@@ -210,7 +210,7 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
 .sq.clickable { cursor: pointer; }
 .sq.last::after {
   content: ""; position: absolute; inset: 0;
-  background: rgba(240, 200, 80, 0.38);
+  background: var(--last);
   pointer-events: none;
 }
 .sq.sel::after {
@@ -218,8 +218,10 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
   box-shadow: inset 0 0 0 4px var(--accent);
   pointer-events: none;
 }
-.sq.check { background: radial-gradient(circle, var(--check) 30%, transparent 75%), var(--sq-dark); }
-.sq.light.check { background: radial-gradient(circle, var(--check) 30%, transparent 75%), var(--sq-light); }
+.sq.check::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle, var(--check) 22%, transparent 70%);
+}
 .sq .hint {
   position: absolute; width: 28%; height: 28%; border-radius: 50%;
   background: var(--hint); pointer-events: none;
@@ -228,9 +230,7 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
   width: 88%; height: 88%; background: transparent;
   box-shadow: inset 0 0 0 5px var(--hint);
 }
-.piece { position: relative; z-index: 1; pointer-events: none; }
-.piece.w { color: #FAFAF6; text-shadow: 0 0 1px #1F2525, 0 0 1px #1F2525, 0 0 2px #1F2525, 0 1px 0 #1F2525; }
-.piece.b { color: #1F2525; text-shadow: 0 0 1px #FAFAF6; }
+.piece { position: relative; z-index: 1; pointer-events: none; width: 92%; height: 92%; display: block; }
 .coord {
   position: absolute; font-size: 10px; font-weight: 600; line-height: 1;
   opacity: 0.75; pointer-events: none;
@@ -264,7 +264,10 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
   overflow-y: auto;
   font-size: 0.95rem;
 }
-.moves .n { color: var(--muted); }
+.moves .n { color: var(--muted); align-self: center; }
+.moves .mv { background: none; border: 0; text-align: left; padding: 2px 6px; border-radius: 4px; }
+.moves .mv:hover { background: var(--bg); }
+.moves .mv.cur { background: var(--accent); color: var(--accent-ink); }
 .note { font-size: 0.85rem; color: var(--muted); margin: 8px 0 0; }
 
 /* Forvandling */
@@ -274,7 +277,7 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
 }
 .overlay.open { display: flex; }
 .promo { background: var(--surface); border-radius: 10px; padding: 16px; border: 1px solid var(--line); }
-.promo .row button { font-size: 44px; line-height: 1; padding: 6px 12px; background: var(--sq-light); border: 1px solid var(--line); border-radius: 6px; }
+.promo .row button { width: 64px; height: 64px; padding: 4px; background: var(--sq-light); border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
 
 @media (max-width: 980px) {
   .wrap { grid-template-columns: 1fr; }
@@ -298,9 +301,65 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
 .userbox .who { font-weight: 600; }
 .loading { color: var(--muted); }
 .sq.busy { cursor: progress; }
+
+/* ---------- Brett-temaer ---------- */
+body { --last: rgba(240, 200, 80, 0.38); }
+body[data-tema="tre"] {
+  --sq-light: #EBD38D;
+  --sq-dark: #8A5A31;
+  --last: rgba(205, 120, 40, 0.38);
+  --hint: rgba(45, 25, 8, 0.32);
+}
+body[data-tema="tre"] .board { border-color: #5B3A1E; border-width: 6px; box-shadow: 0 2px 10px rgba(60, 35, 10, 0.25); }
+body[data-tema="tre"] .sq.light {
+  background:
+    repeating-linear-gradient(97deg, rgba(150, 100, 30, 0.07) 0 1px, transparent 1px 5px, rgba(150, 100, 30, 0.05) 5px 7px, transparent 7px 13px),
+    #EBD38D;
+}
+body[data-tema="tre"] .sq.dark {
+  background:
+    repeating-linear-gradient(83deg, rgba(40, 20, 5, 0.12) 0 1px, transparent 1px 6px, rgba(255, 220, 170, 0.06) 6px 8px, transparent 8px 14px),
+    #8A5A31;
+}
+body[data-tema="tre"] .piece { filter: drop-shadow(0 1px 1px rgba(40, 20, 5, 0.35)); }
+
+body[data-tema="sh"] {
+  --sq-light: #F3F3F0;
+  --sq-dark: #2E2E2E;
+  --last: rgba(70, 130, 200, 0.42);
+  --hint: rgba(128, 128, 128, 0.6);
+}
+body[data-tema="sh"] .board { border-color: #2E2E2E; border-width: 6px; }
+body[data-tema="sh"] .piece.b { filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.6)); }
+body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)); }
+
+.ghost.piece { width: auto; height: auto; }
+.themepick { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--muted); font-size: 0.9rem; }
+.themepick select { width: auto; padding: 6px 8px; }
+
+/* ---------- Bla i trekk ---------- */
+.navrow { max-width: 620px; width: 100%; margin: 0 auto; display: flex; align-items: center; gap: 6px; }
+.navrow .btn { min-width: 44px; font-size: 1.15rem; line-height: 1; padding: 8px 10px; }
+.navinfo { flex: 1; text-align: center; color: var(--muted); font-size: 0.9rem; }
+
+/* ---------- Remistilbud ---------- */
+.drawbanner {
+  max-width: 620px; width: 100%; margin: 0 auto;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: grid; gap: 8px;
+}
+.drawbanner h3 { margin: 0; font-size: 1.2rem; }
+.drawbanner p { margin: 0; }
+.drawbanner.incoming { background: var(--accent); color: var(--accent-ink); }
+.drawbanner.incoming .btn { background: var(--accent-ink); color: var(--accent); border-color: var(--accent-ink); font-weight: 600; }
+.drawbanner.incoming .btn:not(.primary) { background: transparent; color: var(--accent-ink); }
+.drawbanner.sent { border: 1px dashed var(--accent); background: var(--surface); }
+.drawbtns { display: flex; gap: 8px; flex-wrap: wrap; }
+.credit { margin-top: 12px; }
 </style>
 </head>
-<body>
+<body data-tema="tre">
 <!-- Innlogging -->
 <div class="view gate" id="loginView" hidden>
   <h1>Fjernsjakk</h1>
@@ -331,6 +390,12 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
   <header class="top">
     <h1>Fjernsjakk</h1>
     <div class="userbox">
+      <label class="themepick" for="themeSel">Brett
+        <select id="themeSel">
+          <option value="tre">Tre</option>
+          <option value="sh">Svart og hvitt</option>
+        </select>
+      </label>
       <span class="who" id="meName"></span>
       <button class="btn quiet" id="renameBtn">Bytt navn</button>
       <button class="btn quiet" id="logoutBtn">Logg ut</button>
@@ -355,9 +420,17 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
   </aside>
 
   <main class="boardcol">
+    <div class="drawbanner" id="drawBanner" hidden aria-live="polite"></div>
     <div class="player-bar" id="barTop"></div>
     <div class="board" id="board" role="grid" aria-label="Sjakkbrett"></div>
     <div class="player-bar" id="barBottom"></div>
+    <div class="navrow" role="group" aria-label="Bla i trekkene">
+      <button class="btn" id="navFirst" aria-label="Til start" title="Til start">«</button>
+      <button class="btn" id="navPrev" aria-label="Forrige trekk" title="Forrige trekk">‹</button>
+      <span class="navinfo" id="navInfo"></span>
+      <button class="btn" id="navNext" aria-label="Neste trekk" title="Neste trekk">›</button>
+      <button class="btn" id="navLast" aria-label="Til siste stilling" title="Til siste stilling">»</button>
+    </div>
     <div class="status" id="status" aria-live="polite"></div>
     <div class="boardactions">
       <button class="btn" id="flip">Snu brettet</button>
@@ -370,7 +443,9 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
     <section class="panel">
       <h2>Trekk</h2>
       <div class="moves" id="moves"></div>
+      <p class="note">Trykk på et trekk, eller bruk piltastene, for å se stillingen da.</p>
     </section>
+    <p class="note credit">Brikker: cburnett av Colin M.L. Burnett (GPLv2+). Regler: chess.js.</p>
   </aside>
 </div>
 
@@ -392,9 +467,43 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
   var CODE_KEY = "fjernsjakk-kode";
   var POLL_MS = 20000;
 
-  var GLYPH = { k: "\u265A", q: "\u265B", r: "\u265C", b: "\u265D", n: "\u265E", p: "\u265F" };
-  var VS = "\uFE0E";
   var FILES = "abcdefgh";
+  var THEME_KEY = "fjernsjakk-tema";
+
+  /* Brikker: cburnett-settet av Colin M.L. Burnett (GPLv2+), via Lichess.
+     Fargene byttes ut per tema. */
+  var PIECE_SVG = {"wk": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 45 45\"><g fill=\"none\" fill-rule=\"evenodd\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"><path stroke-linejoin=\"miter\" d=\"M22.5 11.63V6M20 8h5\"/><path fill=\"#fff\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\" d=\"M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5\"/><path fill=\"#fff\" d=\"M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-3.5-7.5-13-10.5-16-4-3 6 5 10 5 10z\"/><path d=\"M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0\"/></g></svg>", "wq": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"45\" height=\"45\" viewBox=\"0 0 45 45\"><g fill=\"#fff\" fill-rule=\"evenodd\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"><path d=\"M8 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0m16.5-4.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0M41 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0M16 8.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0M33 9a2 2 0 1 1-4 0 2 2 0 1 1 4 0\"/><path stroke-linecap=\"butt\" d=\"M9 26c8.5-1.5 21-1.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L7 14z\"/><path stroke-linecap=\"butt\" d=\"M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z\"/><path fill=\"none\" d=\"M11.5 30c3.5-1 18.5-1 22 0M12 33.5c6-1 15-1 21 0\"/></g></svg>", "wr": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"45\" height=\"45\" viewBox=\"0 0 45 45\"><g fill=\"#fff\" fill-rule=\"evenodd\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"><path stroke-linecap=\"butt\" d=\"M9 39h27v-3H9zm3-3v-4h21v4zm-1-22V9h4v2h5V9h5v2h5V9h4v5\"/><path d=\"m34 14-3 3H14l-3-3\"/><path stroke-linecap=\"butt\" stroke-linejoin=\"miter\" d=\"M31 17v12.5H14V17\"/><path d=\"m31 29.5 1.5 2.5h-20l1.5-2.5\"/><path fill=\"none\" stroke-linejoin=\"miter\" d=\"M11 14h23\"/></g></svg>", "wb": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"45\" height=\"45\" viewBox=\"0 0 45 45\"><g fill=\"none\" fill-rule=\"evenodd\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"><g fill=\"#fff\" stroke-linecap=\"butt\"><path d=\"M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.35.49-2.32.47-3-.5 1.35-1.94 3-2 3-2z\"/><path d=\"M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z\"/><path d=\"M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 1 1 5 0z\"/></g><path stroke-linejoin=\"miter\" d=\"M17.5 26h10M15 30h15m-7.5-14.5v5M20 18h5\"/></g></svg>", "wn": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"45\" height=\"45\" viewBox=\"0 0 45 45\"><g fill=\"none\" fill-rule=\"evenodd\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"><path fill=\"#fff\" d=\"M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21\"/><path fill=\"#fff\" d=\"M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3\"/><path fill=\"#000\" d=\"M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0m5.433-9.75a.5 1.5 30 1 1-.866-.5.5 1.5 30 1 1 .866.5\"/></g></svg>", "wp": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"45\" height=\"45\" viewBox=\"0 0 45 45\"><path fill=\"#fff\" stroke=\"#000\" stroke-linecap=\"round\" stroke-width=\"1.5\" d=\"M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z\"/></svg>", "bk": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 45 45\"><g fill=\"none\" fill-rule=\"evenodd\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"><path stroke-linejoin=\"miter\" d=\"M22.5 11.6V6\"/><path fill=\"#000\" stroke-linecap=\"butt\" stroke-linejoin=\"miter\" d=\"M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5\"/><path fill=\"#000\" d=\"M11.5 37a22.3 22.3 0 0 0 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-3.5-7.5-13-10.5-16-4-3 6 5 10 5 10z\"/><path stroke-linejoin=\"miter\" d=\"M20 8h5\"/><path stroke=\"#ececec\" d=\"M32 29.5s8.5-4 6-9.7C34.1 14 25 18 22.5 24.6v2.1-2.1C20 18 9.9 14 7 19.9c-2.5 5.6 4.8 9 4.8 9\"/><path stroke=\"#ececec\" d=\"M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0\"/></g></svg>", "bq": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"45\" height=\"45\" viewBox=\"0 0 45 45\"><g fill-rule=\"evenodd\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"><g stroke=\"none\"><circle cx=\"6\" cy=\"12\" r=\"2.75\"/><circle cx=\"14\" cy=\"9\" r=\"2.75\"/><circle cx=\"22.5\" cy=\"8\" r=\"2.75\"/><circle cx=\"31\" cy=\"9\" r=\"2.75\"/><circle cx=\"39\" cy=\"12\" r=\"2.75\"/></g><path stroke-linecap=\"butt\" d=\"M9 26c8.5-1.5 21-1.5 27 0l2.5-12.5L31 25l-.3-14.1-5.2 13.6-3-14.5-3 14.5-5.2-13.6L14 25 6.5 13.5z\"/><path stroke-linecap=\"butt\" d=\"M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z\"/><path fill=\"none\" stroke-linecap=\"butt\" d=\"M11 38.5a35 35 1 0 0 23 0\"/><path fill=\"none\" stroke=\"#ececec\" d=\"M11 29a35 35 1 0 1 23 0m-21.5 2.5h20m-21 3a35 35 1 0 0 22 0m-23 3a35 35 1 0 0 24 0\"/></g></svg>", "br": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"45\" height=\"45\" viewBox=\"0 0 45 45\"><g fill-rule=\"evenodd\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"><path stroke-linecap=\"butt\" d=\"M9 39h27v-3H9zm3.5-7 1.5-2.5h17l1.5 2.5zm-.5 4v-4h21v4z\"/><path stroke-linecap=\"butt\" stroke-linejoin=\"miter\" d=\"M14 29.5v-13h17v13z\"/><path stroke-linecap=\"butt\" d=\"M14 16.5 11 14h23l-3 2.5zM11 14V9h4v2h5V9h5v2h5V9h4v5z\"/><path fill=\"none\" stroke=\"#ececec\" stroke-linejoin=\"miter\" stroke-width=\"1\" d=\"M12 35.5h21m-20-4h19m-18-2h17m-17-13h17M11 14h23\"/></g></svg>", "bb": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"45\" height=\"45\" viewBox=\"0 0 45 45\"><g fill=\"none\" fill-rule=\"evenodd\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"><g fill=\"#000\" stroke-linecap=\"butt\"><path d=\"M9 36c3.4-1 10.1.4 13.5-2 3.4 2.4 10.1 1 13.5 2 0 0 1.6.5 3 2-.7 1-1.6 1-3 .5-3.4-1-10.1.5-13.5-1-3.4 1.5-10.1 0-13.5 1-1.4.5-2.3.5-3-.5 1.4-2 3-2 3-2z\"/><path d=\"M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z\"/><path d=\"M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 1 1 5 0z\"/></g><path stroke=\"#ececec\" stroke-linejoin=\"miter\" d=\"M17.5 26h10M15 30h15m-7.5-14.5v5M20 18h5\"/></g></svg>", "bn": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"45\" height=\"45\" viewBox=\"0 0 45 45\"><g fill=\"none\" fill-rule=\"evenodd\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"><path fill=\"#000\" d=\"M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21\"/><path fill=\"#000\" d=\"M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.04-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-1-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-2 2.5-3c1 0 1 3 1 3\"/><path fill=\"#ececec\" stroke=\"#ececec\" d=\"M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0m5.43-9.75a.5 1.5 30 1 1-.86-.5.5 1.5 30 1 1 .86.5\"/><path fill=\"#ececec\" stroke=\"none\" d=\"m24.55 10.4-.45 1.45.5.15c3.15 1 5.65 2.49 7.9 6.75S35.75 29.06 35.25 39l-.05.5h2.25l.05-.5c.5-10.06-.88-16.85-3.25-21.34s-5.79-6.64-9.19-7.16z\"/></g></svg>", "bp": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"45\" height=\"45\" viewBox=\"0 0 45 45\"><path stroke=\"#000\" stroke-linecap=\"round\" stroke-width=\"1.5\" d=\"M22.5 9a4 4 0 0 0-3.22 6.38 6.48 6.48 0 0 0-.87 10.65c-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47a6.46 6.46 0 0 0-.87-10.65A4.01 4.01 0 0 0 22.5 9z\"/></svg>"};
+  var THEMES = {
+    tre: { w: { "#fff": "#FBF1DA", "#000": "#3A2312", "#ececec": "#E6D3AE" },
+           b: { "#000": "#3A2312", "#fff": "#EAD7B0", "#ececec": "#EAD7B0" } },
+    sh:  { w: {}, b: {} }
+  };
+  var theme = "tre";
+  var pieceUrls = {};
+
+  function buildPieces() {
+    pieceUrls = {};
+    Object.keys(PIECE_SVG).forEach(function (k) {
+      var map = THEMES[theme][k[0]];
+      var svg = PIECE_SVG[k].replace(/#(?:ececec|fff|000)\b/g, function (c) { return map[c] || c; });
+      pieceUrls[k] = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    });
+  }
+  function pieceImg(type, color) {
+    var img = document.createElement("img");
+    img.className = "piece " + color;
+    img.alt = "";
+    img.draggable = false;
+    img.src = pieceUrls[color + type];
+    return img;
+  }
+  function applyTheme(t) {
+    theme = THEMES[t] ? t : "tre";
+    document.body.setAttribute("data-tema", theme);
+    try { localStorage.setItem(THEME_KEY, theme); } catch (e) { /* valgfritt */ }
+    var sel = $("themeSel"); if (sel) sel.value = theme;
+    buildPieces();
+  }
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -405,7 +514,7 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
   var players = [];          // fra sjakk_spillerliste
   var cur = null;            // { parti, trekk, i_dag }
   var chess = null;
-  var ui = { selected: null, targets: [], flipped: false };
+  var ui = { selected: null, targets: [], flipped: false, view: null };
   var busy = false;
   var drag = null, ghost = null;
   var pollTimer = null;
@@ -510,7 +619,8 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
       cur.trekk.forEach(function (m) {
         chess.move({ from: m.fra, to: m.til, promotion: m.forvandling || undefined });
       });
-      if (changedGame) ui.flipped = myColor() === "b";
+      if (changedGame) { ui.flipped = myColor() === "b"; ui.view = null; }
+      if (ui.view !== null && ui.view >= cur.trekk.length) ui.view = null;
       ui.selected = null; ui.targets = [];
       renderBoardArea();
     });
@@ -547,7 +657,7 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
   }
   function isOver() { return cur && cur.parti.status !== "pågår"; }
   function canMove() {
-    if (!cur || isOver() || busy) return false;
+    if (!cur || isOver() || busy || ui.view !== null) return false;
     if (myColor() !== chess.turn()) return false;
     return usedToday(me.id) < cur.parti.trekk_per_dag;
   }
@@ -636,7 +746,7 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
   }
 
   function renderBoardArea() {
-    renderBoard(); renderBars(); renderStatus(); renderMoves(); renderDraw();
+    renderBoard(); renderBars(); renderStatus(); renderMoves(); renderDraw(); renderNav();
     $("resign").disabled = !cur || isOver() || !myColor() || busy;
     $("flip").disabled = !cur;
   }
@@ -645,15 +755,45 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
     return { k: "konge", q: "dronning", r: "tårn", b: "løper", n: "springer", p: "bonde" }[t];
   }
 
+  /* Stillingen som vises: siste, eller en tidligere når man blar */
+  function shownCount() { return !cur ? 0 : (ui.view === null ? cur.trekk.length : ui.view); }
+  function boardChess() {
+    if (!cur || ui.view === null) return chess;
+    var c = new Chess();
+    for (var i = 0; i < ui.view; i++) {
+      var m = cur.trekk[i];
+      c.move({ from: m.fra, to: m.til, promotion: m.forvandling || undefined });
+    }
+    return c;
+  }
+  function goTo(n) {
+    if (!cur) return;
+    var len = cur.trekk.length;
+    n = Math.max(0, Math.min(len, n));
+    ui.view = n === len ? null : n;
+    ui.selected = null; ui.targets = [];
+    renderBoard(); renderMoves(); renderNav(); renderStatus();
+  }
+
+  function renderNav() {
+    var len = cur ? cur.trekk.length : 0, n = shownCount();
+    $("navFirst").disabled = $("navPrev").disabled = !cur || n === 0;
+    $("navNext").disabled = $("navLast").disabled = !cur || n === len;
+    $("navInfo").textContent = !cur || !len ? "" :
+      (ui.view === null ? "Siste stilling" : "Trekk " + n + " av " + len);
+  }
+
   function renderBoard() {
     var board = $("board");
     board.innerHTML = "";
-    var last = cur && cur.trekk.length ? cur.trekk[cur.trekk.length - 1] : null;
+    var bc = boardChess();
+    var n = shownCount();
+    var last = cur && n ? cur.trekk[n - 1] : null;
     var kingInCheck = null;
-    if (chess.in_check()) {
-      chess.SQUARES.forEach(function (s) {
-        var pc = chess.get(s);
-        if (pc && pc.type === "k" && pc.color === chess.turn()) kingInCheck = s;
+    if (bc.in_check()) {
+      bc.SQUARES.forEach(function (s) {
+        var pc = bc.get(s);
+        if (pc && pc.type === "k" && pc.color === bc.turn()) kingInCheck = s;
       });
     }
     var movable = canMove();
@@ -667,18 +807,13 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
         el.type = "button";
         el.className = "sq " + ((f + r) % 2 === 0 ? "light" : "dark") + (busy ? " busy" : "");
         el.dataset.sq = sq;
-        var pc = chess.get(sq);
+        var pc = bc.get(sq);
         el.setAttribute("aria-label", sq + (pc ? " " + (pc.color === "w" ? "hvit " : "svart ") + pieceName(pc.type) : ""));
         if (last && (last.fra === sq || last.til === sq)) el.classList.add("last");
         if (ui.selected === sq) el.classList.add("sel");
         if (kingInCheck === sq) el.classList.add("check");
         if (drag && drag.dragging && drag.from === sq) el.classList.add("dragfrom");
-        if (pc) {
-          var span = document.createElement("span");
-          span.className = "piece " + pc.color;
-          span.textContent = GLYPH[pc.type] + VS;
-          el.appendChild(span);
-        }
+        if (pc) el.appendChild(pieceImg(pc.type, pc.color));
         var target = ui.targets.find(function (m) { return m.to === sq; });
         if (target) {
           var h = document.createElement("span");
@@ -754,6 +889,12 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
       showStatus(players.length ? "Start et parti mot en av de andre spillerne." : "Det er ingen andre spillere ennå. Når noen har logget inn og valgt navn, kan du starte et parti.");
       return;
     }
+    if (ui.view !== null) {
+      var mv = ui.view ? cur.trekk[ui.view - 1] : null;
+      showStatus(mv ? "Du ser på stillingen etter " + Math.ceil(ui.view / 2) + "." + (ui.view % 2 ? " " : " … ") + mv.san +
+        ". Trykk » for å gå tilbake til partiet." : "Du ser på utgangsstillingen. Trykk » for å gå tilbake til partiet.");
+      return;
+    }
     if (isOver()) { showStatus(resultText(), "good"); return; }
     var check = chess.in_check() ? "Sjakk! " : "";
     var nextName = nameOf(chess.turn());
@@ -777,45 +918,63 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
       el.appendChild(p);
       return;
     }
+    var n = shownCount();
     for (var i = 0; i < hist.length; i += 2) {
-      add("n", (i / 2 + 1) + ".");
-      add("", hist[i]);
-      add("", hist[i + 1] || "");
-    }
-    el.scrollTop = el.scrollHeight;
-    function add(cls, txt) {
       var s = document.createElement("span");
-      if (cls) s.className = cls;
-      s.textContent = txt;
+      s.className = "n"; s.textContent = (i / 2 + 1) + ".";
       el.appendChild(s);
+      addMove(i); 
+      if (i + 1 < hist.length) addMove(i + 1); else el.appendChild(document.createElement("span"));
+    }
+    var curBtn = el.querySelector(".mv.cur");
+    if (ui.view === null) el.scrollTop = el.scrollHeight;
+    else if (curBtn) curBtn.scrollIntoView({ block: "nearest" });
+    function addMove(idx) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "mv" + (idx + 1 === n ? " cur" : "");
+      b.textContent = hist[idx];
+      b.addEventListener("click", function () { goTo(idx + 1); });
+      el.appendChild(b);
     }
   }
 
   function renderDraw() {
-    var box = $("drawActions");
-    box.innerHTML = "";
+    var box = $("drawActions"), banner = $("drawBanner");
+    box.innerHTML = ""; banner.innerHTML = ""; banner.hidden = true; banner.className = "drawbanner";
     if (!cur || isOver() || !myColor()) return;
     var offer = cur.parti.remis_tilbud;
     var opp = nameOf(myColor() === "w" ? "b" : "w");
 
-    function info(t) {
-      var s = document.createElement("span"); s.className = "info"; s.textContent = t; box.appendChild(s);
-    }
-    function btn(t, handling, primary) {
+    function btn(parent, t, handling, primary, ask) {
       var b = document.createElement("button");
       b.type = "button"; b.className = "btn" + (primary ? " primary" : ""); b.textContent = t;
       b.disabled = busy;
-      b.addEventListener("click", function () { act("sjakk_remis", { p_handling: handling }); });
-      box.appendChild(b);
+      b.addEventListener("click", function () {
+        if (ask && !confirm(ask)) return;
+        act("sjakk_remis", { p_handling: handling });
+      });
+      parent.appendChild(b);
     }
-    if (!offer) { btn("Tilby remis", "tilby"); return; }
+    function text(tag, t) { var e = document.createElement(tag); e.textContent = t; banner.appendChild(e); return e; }
+
+    if (!offer) { btn(box, "Tilby remis", "tilby", false, "Vil du tilby " + opp + " remis?"); return; }
+
+    banner.hidden = false;
+    var row = document.createElement("div"); row.className = "drawbtns";
     if (offer === me.id) {
-      info("Du har tilbudt remis. Venter på svar fra " + opp + ".");
-      btn("Trekk tilbake tilbudet", "trekk_tilbake");
+      banner.classList.add("sent");
+      text("p", "Du har tilbudt remis. Venter på svar fra " + opp + ".");
+      banner.appendChild(row);
+      btn(row, "Trekk tilbake tilbudet", "trekk_tilbake");
     } else {
-      info(opp + " tilbyr remis.");
-      btn("Godta remis", "godta", true);
-      btn("Avslå", "avslå");
+      banner.classList.add("incoming");
+      banner.setAttribute("role", "alert");
+      text("h3", opp + " tilbyr remis");
+      text("p", "Godtar du, ender partiet uavgjort. Gjør du et trekk i stedet, regnes det som at du avslår.");
+      banner.appendChild(row);
+      btn(row, "Godta remis", "godta", true, "Godta remis? Partiet avsluttes.");
+      btn(row, "Avslå", "avslå");
     }
   }
 
@@ -858,6 +1017,7 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
 
   function doMove(from, to, promotion) {
     if (!canMove()) return;
+    ui.view = null;
     var nr = cur.trekk.length + 1;
     var m = chess.move({ from: from, to: to, promotion: promotion });
     if (!m) return;
@@ -897,9 +1057,7 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
       var b = document.createElement("button");
       b.type = "button";
       b.setAttribute("aria-label", pieceName(t));
-      var s = document.createElement("span");
-      s.className = "piece " + color; s.textContent = GLYPH[t] + VS;
-      b.appendChild(s);
+      b.appendChild(pieceImg(t, color));
       b.addEventListener("click", function () {
         $("promoOverlay").classList.remove("open");
         doMove(from, to, t);
@@ -947,10 +1105,9 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
     if (!drag.dragging) {
       if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) < 6) return;
       drag.dragging = true;
-      ghost = document.createElement("span");
-      ghost.className = "ghost piece " + drag.color;
-      ghost.textContent = GLYPH[drag.type] + VS;
-      ghost.style.fontSize = Math.round(drag.size * 0.9) + "px";
+      ghost = pieceImg(drag.type, drag.color);
+      ghost.classList.add("ghost");
+      ghost.style.width = ghost.style.height = Math.round(drag.size * 1.05) + "px";
       document.body.appendChild(ghost);
       var src = boardEl.querySelector('[data-sq="' + drag.from + '"]');
       if (src) src.classList.add("dragfrom");
@@ -1020,6 +1177,24 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
     }).then(function () { $("startGame").disabled = !players.length; });
   });
 
+  $("navFirst").addEventListener("click", function () { goTo(0); });
+  $("navPrev").addEventListener("click", function () { goTo(shownCount() - 1); });
+  $("navNext").addEventListener("click", function () { goTo(shownCount() + 1); });
+  $("navLast").addEventListener("click", function () { goTo(cur ? cur.trekk.length : 0); });
+  document.addEventListener("keydown", function (e) {
+    if ($("appView").hidden || !cur) return;
+    var tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "select" || tag === "textarea") return;
+    if (e.key === "ArrowLeft") { goTo(shownCount() - 1); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { goTo(shownCount() + 1); e.preventDefault(); }
+    else if (e.key === "Home") { goTo(0); e.preventDefault(); }
+    else if (e.key === "End") { goTo(cur.trekk.length); e.preventDefault(); }
+  });
+  $("themeSel").addEventListener("change", function () {
+    applyTheme(this.value);
+    if (cur || chess) { renderBoard(); }
+  });
+
   $("flip").addEventListener("click", function () { ui.flipped = !ui.flipped; renderBoard(); renderBars(); });
 
   $("resign").addEventListener("click", function () {
@@ -1035,6 +1210,9 @@ label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--a
     $("loginBtn").disabled = true;
     return;
   }
+  var savedTheme = null;
+  try { savedTheme = localStorage.getItem(THEME_KEY); } catch (e) { /* valgfritt */ }
+  applyTheme(savedTheme || "tre");
   chess = new Chess();
   var saved = readCode();
   if (saved) tryLogin(saved, true); else startLogin("");
