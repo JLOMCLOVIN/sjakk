@@ -372,6 +372,16 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
 .invbtns .btn { padding: 5px 10px; font-size: 0.9rem; }
 .donegroup { margin-top: 14px; }
 .donegroup summary { cursor: pointer; font-size: 0.95rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+
+/* ---------- Rangering ---------- */
+.ranktable { width: 100%; border-collapse: collapse; font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+.ranktable th { text-align: left; font-weight: 600; color: var(--muted); font-size: 0.8rem; padding: 0 4px 6px; }
+.ranktable td { padding: 6px 4px; border-top: 1px solid var(--line); vertical-align: middle; }
+.ranktable td.num { font-weight: 700; }
+.ranktable tr.me td { background: var(--bg); }
+.ranktable tr.me td:nth-child(2) { font-weight: 600; }
+.spark { display: block; }
+.spark path { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
 </style>
 </head>
 <body data-tema="tre">
@@ -432,6 +442,15 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
       <button class="btn primary full mt" id="startGame">Send invitasjon</button>
       <p class="note" id="newGameMsg" aria-live="polite"></p>
     </section>
+    <section class="panel">
+      <h2>Spill mot bot</h2>
+      <label for="botLevel">Motstander</label>
+      <select id="botLevel"></select>
+      <p class="note" id="botLevelText"></p>
+      <button class="btn primary full mt" id="botStart">Start parti mot bot</button>
+      <p class="note" id="botNote"></p>
+      <p class="note" id="botMsg" aria-live="polite"></p>
+    </section>
   </aside>
 
   <main class="boardcol">
@@ -460,7 +479,12 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
       <div class="moves" id="moves"></div>
       <p class="note">Trykk på et trekk, eller bruk piltastene, for å se stillingen da.</p>
     </section>
-    <p class="note credit">Brikker: cburnett av Colin M.L. Burnett (GPLv2+). Regler: chess.js.</p>
+    <section class="panel">
+      <h2>Rangering</h2>
+      <div id="ranking"><p class="loading">Henter rangering …</p></div>
+      <p class="note">Alle starter på 800. Bare partier mellom spillere teller. S-R-T er seire, remis og tap.</p>
+    </section>
+    <p class="note credit">Brikker: cburnett av Colin M.L. Burnett (GPLv2+). Regler: chess.js. Bot: Stockfish 18 via Stockfish.js (GPLv3).</p>
   </aside>
 </div>
 
@@ -484,6 +508,20 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
 
   var FILES = "abcdefgh";
   var THEME_KEY = "fjernsjakk-tema";
+  var BOT_LEVEL_KEY = "fjernsjakk-botniva";
+  var STOCKFISH_FILE = "stockfish-18-lite-single.js";   // må ligge i samme mappe som index.html
+
+  /* Seks nivåer. skill = Stockfish «Skill Level» (0 til 20), depth og ms begrenser tenketiden,
+     random = sjanse for et helt tilfeldig lovlig trekk. */
+  var BOT_LEVELS = [
+    { navn: "Magnus Carelessen",  tekst: "En ganske full magnus dette.",           skill: 0, depth: 1, ms: 50,  random: 0.50 },
+    { navn: "Anatolij Karpefisk", tekst: "Glatt i stilen, men glipper ofte.",          skill: 0, depth: 1, ms: 100, random: 0.25 },
+    { navn: "Hikaru Nakamaybe",   tekst: "Kanskje ser han det, kanskje ikke.",         skill: 0, depth: 2, ms: 150, random: 0.12 },
+    { navn: "Judit Polgarantert", tekst: "Garantert en jevn og god kamp.",             skill: 1, depth: 3, ms: 200, random: 0.06 },
+    { navn: "Garri Kasparerer",   tekst: "Parerer det meste, men ikke alt.",           skill: 3, depth: 4, ms: 300, random: 0.03 },
+    { navn: "Bobby Stockfisher",  tekst: "Den sterkeste av dem. Lykke til.",           skill: 6, depth: 6, ms: 600, random: 0 }
+  ];
+
 
   /* Brikker: cburnett-settet av Colin M.L. Burnett (GPLv2+), via Lichess.
      Fargene byttes ut per tema. */
@@ -527,6 +565,10 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
   var me = null;             // { id, navn }
   var games = [];            // fra sjakk_mine_partier
   var players = [];          // fra sjakk_spillerliste
+  var botGames = [];         // fra sjakk_bot_partier
+  var botCanStart = false;
+  var ranking = [];          // fra sjakk_rangering
+  var botThinking = false;
   var cur = null;            // { parti, trekk, i_dag }
   var chess = null;
   var ui = { selected: null, targets: [], flipped: false, view: null };
@@ -611,17 +653,74 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
   function refreshAll(force) {
     return Promise.all([
       rpc("sjakk_mine_partier", { p_kode: code }),
-      rpc("sjakk_spillerliste", { p_kode: code })
+      rpc("sjakk_spillerliste", { p_kode: code }),
+      rpc("sjakk_bot_partier", { p_kode: code }),
+      rpc("sjakk_rangering", { p_kode: code })
     ]).then(function (r) {
       games = r[0] || [];
       players = (r[1] || []).filter(function (p) { return p.id !== me.id; });
-      renderGameList();
-      renderOpponents();
-      if (cur && games.some(function (g) { return g.id === cur.parti.id; })) return loadGame(cur.parti.id, force);
+      setBotData(r[2]);
+      ranking = r[3] || [];
+      renderGameList(); renderOpponents(); renderBotPanel(); renderRanking();
+      if (cur && cur.type === "bot" && botGames.some(function (g) { return g.id === cur.parti.id; })) return loadBot(cur.parti.id, force);
+      if (cur && cur.type !== "bot" && games.some(function (g) { return g.id === cur.parti.id; })) return loadGame(cur.parti.id, force);
       var pick = defaultGame();
       if (pick) return loadGame(pick.id, true).then(renderGameList);
+      var bot = botGames.filter(function (g) { return g.status === "pågår"; })[0];
+      if (bot) return loadBot(bot.id, true).then(renderGameList);
       cur = null; lastSig = ""; chess = new Chess(); renderBoardArea();
     }).catch(handleError);
+  }
+
+  function setBotData(d) {
+    botGames = d && d.partier ? d.partier : [];
+    botCanStart = !!(d && d.kan_starte);
+  }
+
+  /* Oppdaterer lister, botpanel og rangering uten å laste brettet på nytt */
+  function refreshSide() {
+    return Promise.all([
+      rpc("sjakk_mine_partier", { p_kode: code }),
+      rpc("sjakk_bot_partier", { p_kode: code }),
+      rpc("sjakk_rangering", { p_kode: code })
+    ]).then(function (r) {
+      games = r[0] || []; setBotData(r[1]); ranking = r[2] || [];
+      renderGameList(); renderBotPanel(); renderRanking();
+    });
+  }
+
+  function botMoveOwner(i, playerColor) { return (i % 2 === 0) === (playerColor === "w") ? me.id : "bot"; }
+
+  function loadBot(id, force) {
+    return rpc("sjakk_bot_hent", { p_kode: code, p_parti: id }).then(function (res) {
+      var sig = "bot|" + id + "|" + res.trekk.length + "|" + res.status;
+      var changedGame = !cur || cur.parti.id !== id;
+      if (!force && !changedGame && sig === lastSig) return;
+      lastSig = sig;
+      var lvl = BOT_LEVELS[res.niva - 1];
+      var w = res.farge === "w";
+      cur = {
+        type: "bot",
+        parti: {
+          id: res.id, status: res.status, avslutning: res.avslutning, trekk_per_dag: null,
+          remis_tilbud: null, invitert_av: null, niva: res.niva,
+          hvit: w ? me.id : "bot", svart: w ? "bot" : me.id,
+          hvit_navn: w ? me.navn : lvl.navn, svart_navn: w ? lvl.navn : me.navn
+        },
+        trekk: res.trekk.map(function (m, i) {
+          return { nr: i + 1, fra: m.fra, til: m.til, forvandling: m.forvandling || null, san: m.san,
+                   spiller_id: botMoveOwner(i, res.farge), dato: null };
+        }),
+        i_dag: res.i_dag
+      };
+      chess = new Chess();
+      cur.trekk.forEach(function (m) { chess.move({ from: m.fra, to: m.til, promotion: m.forvandling || undefined }); });
+      if (changedGame) { ui.flipped = res.farge === "b"; ui.view = null; }
+      if (ui.view !== null && ui.view >= cur.trekk.length) ui.view = null;
+      ui.selected = null; ui.targets = [];
+      renderBoardArea();
+      if (isActive()) { initEngine().catch(function () { /* meldes når boten skal trekke */ }); triggerBot(); }
+    });
   }
 
   function isMyTurn(g) {
@@ -642,6 +741,7 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
       if (!force && !changedGame && sig === lastSig) return;
       lastSig = sig;
       cur = res;
+      cur.type = "venn";
       chess = new Chess();
       cur.trekk.forEach(function (m) {
         chess.move({ from: m.fra, to: m.til, promotion: m.forvandling || undefined });
@@ -667,13 +767,13 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
   function startPolling() {
     stopPolling();
     pollTimer = setInterval(function () {
-      if (document.hidden || busy || drag) return;
+      if (document.hidden || busy || drag || botThinking) return;
       refreshAll(false);
     }, POLL_MS);
   }
   function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
   document.addEventListener("visibilitychange", function () {
-    if (!document.hidden && me && code && !$("appView").hidden && !busy && !drag) refreshAll(false);
+    if (!document.hidden && me && code && !$("appView").hidden && !busy && !drag && !botThinking) refreshAll(false);
   });
 
   /* ---------- Hjelpere for partiet ---------- */
@@ -694,6 +794,7 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
   function canMove() {
     if (!isActive() || busy || ui.view !== null) return false;
     if (myColor() !== chess.turn()) return false;
+    if (cur.type === "bot") return !botThinking;
     return usedToday(me.id) < cur.parti.trekk_per_dag;
   }
 
@@ -715,6 +816,14 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     if (p.avslutning === "oppgitt") return loser + " ga opp. " + winner + " vant.";
     if (p.avslutning === "sjakkmatt") return "Sjakkmatt. " + winner + " vant.";
     return winner + " vant.";
+  }
+
+  function ratingText() {
+    var rt = cur && cur.type === "venn" ? cur.parti.rating : null;
+    if (!rt || !myColor()) return "";
+    var w = myColor() === "w";
+    var d = w ? rt.endring : -rt.endring, before = w ? rt.hvit_for : rt.svart_for;
+    return " Ratingen din: " + (d >= 0 ? "+" : "") + d + " (fra " + before + " til " + (before + d) + ").";
   }
 
   /* ---------- Tegning ---------- */
@@ -746,7 +855,7 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
   function gameItem(g) {
     var li = document.createElement("li");
     var b = document.createElement("button");
-    b.setAttribute("aria-current", cur && cur.parti.id === g.id ? "true" : "false");
+    b.setAttribute("aria-current", cur && cur.type !== "bot" && cur.parti.id === g.id ? "true" : "false");
     var who = document.createElement("span");
     who.className = "who";
     who.textContent = g.hvit_navn + " mot " + g.svart_navn;
@@ -759,7 +868,7 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     st.textContent = stt.t;
     b.appendChild(who); b.appendChild(lim); b.appendChild(st);
     b.addEventListener("click", function () {
-      if (busy) return;
+      if (busy || botThinking) return;
       loadGame(g.id, true).then(renderGameList).catch(handleError);
     });
     li.appendChild(b);
@@ -779,6 +888,37 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     return li;
   }
 
+  function botItem(g) {
+    var lvl = BOT_LEVELS[g.niva - 1];
+    var li = document.createElement("li");
+    var b = document.createElement("button");
+    b.setAttribute("aria-current", cur && cur.type === "bot" && cur.parti.id === g.id ? "true" : "false");
+    var who = document.createElement("span");
+    who.className = "who";
+    who.textContent = "Mot " + lvl.navn;
+    var lim = document.createElement("span");
+    lim.className = "state";
+    lim.textContent = "Bot, nivå " + g.niva + ". ";
+    var st = document.createElement("span");
+    st.className = "state";
+    if (g.status === "pågår") {
+      var myTurn = (g.antall_trekk % 2 === 0) === (g.farge === "w");
+      st.textContent = myTurn ? "Din tur" : "Pågår";
+      if (myTurn) st.classList.add("mine");
+    } else if (g.status === "remis") st.textContent = "Remis";
+    else {
+      var won = (g.status === "hvit_vant") === (g.farge === "w");
+      st.textContent = won ? "Du vant" : (g.avslutning === "oppgitt" ? "Du ga opp" : lvl.navn + " vant");
+    }
+    b.appendChild(who); b.appendChild(lim); b.appendChild(st);
+    b.addEventListener("click", function () {
+      if (busy || botThinking) return;
+      loadBot(g.id, true).then(renderGameList).catch(handleError);
+    });
+    li.appendChild(b);
+    return li;
+  }
+
   function smallBtn(t, primary, fn) {
     var b = document.createElement("button");
     b.type = "button"; b.className = "btn" + (primary ? " primary" : ""); b.textContent = t;
@@ -790,7 +930,7 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
   function renderGameList() {
     var root = $("gameList");
     root.innerHTML = "";
-    if (!games.length) {
+    if (!games.length && !botGames.length) {
       var p = document.createElement("p");
       p.className = "empty";
       p.textContent = players.length ? "Ingen partier ennå. Inviter noen nedenfor." : "Ingen partier ennå.";
@@ -800,21 +940,27 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     var inv = games.filter(function (g) { return g.status === "invitert"; });
     var act = games.filter(function (g) { return g.status === "pågår"; });
     var done = games.filter(function (g) { return DONE.indexOf(g.status) >= 0; });
+    var botAct = botGames.filter(function (g) { return g.status === "pågår"; });
+    var botDone = botGames.filter(function (g) { return g.status !== "pågår"; });
     // Invitasjoner til meg først
     inv.sort(function (a, b) { return (a.invitert_av === me.id) - (b.invitert_av === me.id); });
     // Partier der det er min tur først
     act.sort(function (a, b) { return (isMyTurn(b) ? 1 : 0) - (isMyTurn(a) ? 1 : 0); });
 
     if (inv.length) addSection("Invitasjoner", inv);
-    addSection("Pågående", act, "Ingen pågående partier.");
-    if (done.length) {
+    addSection("Pågående", act.concat(botAct), "Ingen pågående partier.");
+    var allDone = done.map(function (g) { return { g: g, t: g.sist }; })
+      .concat(botDone.map(function (g) { return { g: g, t: g.oppdatert, bot: true }; }))
+      .sort(function (a, b) { return new Date(b.t) - new Date(a.t); })
+      .map(function (x) { return x.g; });
+    if (allDone.length) {
       var det = document.createElement("details");
       det.className = "donegroup";
       if (cur && DONE.indexOf(cur.parti.status) >= 0) det.open = true;
       var sum = document.createElement("summary");
-      sum.textContent = "Ferdige (" + done.length + ")";
+      sum.textContent = "Ferdige (" + allDone.length + ")";
       det.appendChild(sum);
-      det.appendChild(list(done));
+      det.appendChild(list(allDone));
       root.appendChild(det);
     }
 
@@ -833,7 +979,7 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     function list(arr) {
       var ul = document.createElement("ul");
       ul.className = "games";
-      arr.forEach(function (g) { ul.appendChild(gameItem(g)); });
+      arr.forEach(function (g) { ul.appendChild(g.niva ? botItem(g) : gameItem(g)); });
       return ul;
     }
   }
@@ -982,13 +1128,22 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     var dot = document.createElement("span");
     dot.className = "dot " + color;
     left.appendChild(dot);
-    left.appendChild(document.createTextNode(name + (pid === me.id ? " (deg)" : "")));
+    var rating = cur.type === "venn" ? (color === "w" ? cur.parti.hvit_rating : cur.parti.svart_rating) : null;
+    left.appendChild(document.createTextNode(name + (pid === me.id ? " (deg)" : "") + (rating ? " · " + rating : "")));
     if (isActive() && chess.turn() === color) {
       var tm = document.createElement("span");
       tm.className = "turnmark"; tm.textContent = "i trekket";
       left.appendChild(tm);
     }
     var right = document.createElement("div");
+    if (cur.type === "bot") {
+      var inf = document.createElement("div");
+      inf.className = "stampinfo";
+      inf.textContent = pid === "bot" ? "Nivå " + cur.parti.niva + " av 6" : "Ubegrenset med trekk";
+      right.appendChild(inf);
+      el.appendChild(left); el.appendChild(right);
+      return;
+    }
     var used = usedToday(pid), max = cur.parti.trekk_per_dag;
     var stamps = document.createElement("div");
     stamps.className = "stamps";
@@ -1022,7 +1177,7 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
         ". Trykk » for å gå tilbake til partiet." : "Du ser på utgangsstillingen. Trykk » for å gå tilbake til partiet.");
       return;
     }
-    if (isOver()) { showStatus(resultText(), "good"); return; }
+    if (isOver()) { showStatus(resultText() + ratingText(), "good"); return; }
     if (cur.parti.status === "invitert") {
       showStatus(cur.parti.invitert_av === me.id ?
         "Partiet starter når " + nameOf(myColor() === "w" ? "b" : "w") + " har godtatt invitasjonen." :
@@ -1032,8 +1187,12 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     var check = chess.in_check() ? "Sjakk! " : "";
     var nextName = nameOf(chess.turn());
     var kind = chess.in_check() ? "alert" : "";
+    if (cur.type === "bot" && myColor() !== chess.turn()) {
+      showStatus(check + (botThinking ? nextName + " tenker …" : nextName + " er i trekket."), kind);
+      return;
+    }
     if (myColor() !== chess.turn()) { showStatus(check + "Venter på at " + nextName + " skal trekke.", kind); return; }
-    if (usedToday(me.id) >= cur.parti.trekk_per_dag) {
+    if (cur.type !== "bot" && usedToday(me.id) >= cur.parti.trekk_per_dag) {
       showStatus(check + "Du har brukt dagens " + cur.parti.trekk_per_dag + " trekk i dette partiet. Neste trekk kan gjøres i morgen.", "alert");
       return;
     }
@@ -1076,7 +1235,7 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     var box = $("drawActions"), banner = $("drawBanner");
     box.innerHTML = ""; banner.innerHTML = ""; banner.hidden = true; banner.className = "drawbanner";
     banner.removeAttribute("role");
-    if (!cur || !myColor()) return;
+    if (!cur || !myColor() || cur.type === "bot") return;
 
     if (cur.parti.status === "invitert") {
       var oppName = nameOf(myColor() === "w" ? "b" : "w");
@@ -1145,16 +1304,14 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     var id = cur.parti.id;
     rpc(fn, args).then(function () {
       busy = false;
-      return Promise.all([loadGame(id, true), refreshList()]);
+      return Promise.all([loadGame(id, true), refreshSide()]);
     }).catch(function (e) {
       busy = false;
       return loadGame(id, true).then(function () { handleError(e); }, function () { handleError(e); });
     });
   }
 
-  function refreshList() {
-    return rpc("sjakk_mine_partier", { p_kode: code }).then(function (r) { games = r || []; renderGameList(); });
-  }
+  function refreshList() { return refreshSide(); }
 
   function onSquare(sq) {
     if (!canMove()) return;
@@ -1181,12 +1338,7 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     var m = chess.move({ from: from, to: to, promotion: promotion });
     if (!m) return;
 
-    var resultat = null, avslutning = null;
-    if (chess.in_checkmate()) { resultat = m.color === "w" ? "hvit_vant" : "svart_vant"; avslutning = "sjakkmatt"; }
-    else if (chess.in_stalemate()) { resultat = "remis"; avslutning = "patt"; }
-    else if (chess.in_threefold_repetition()) { resultat = "remis"; avslutning = "trefoldig gjentakelse"; }
-    else if (chess.insufficient_material()) { resultat = "remis"; avslutning = "utilstrekkelig materiell"; }
-    else if (chess.in_draw()) { resultat = "remis"; avslutning = "50-trekksregelen"; }
+    var res0 = computeResult(m), resultat = res0.resultat, avslutning = res0.avslutning;
 
     // Vis trekket med en gang, og bekreft det mot serveren
     cur.trekk.push({ nr: nr, fra: from, til: to, forvandling: promotion || null, san: m.san, spiller_id: me.id, dato: cur.i_dag });
@@ -1194,6 +1346,8 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     busy = true;
     renderBoardArea();
     showStatus("Lagrer trekket …");
+
+    if (cur.type === "bot") { saveBot(resultat, avslutning, !resultat); return; }
 
     var id = cur.parti.id;
     rpc("sjakk_gjor_trekk", {
@@ -1206,6 +1360,181 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
       busy = false;
       return loadGame(id, true).then(function () { handleError(e); }, function () { handleError(e); });
     });
+  }
+
+  function computeResult(m) {
+    if (chess.in_checkmate()) return { resultat: m.color === "w" ? "hvit_vant" : "svart_vant", avslutning: "sjakkmatt" };
+    if (chess.in_stalemate()) return { resultat: "remis", avslutning: "patt" };
+    if (chess.in_threefold_repetition()) return { resultat: "remis", avslutning: "trefoldig gjentakelse" };
+    if (chess.insufficient_material()) return { resultat: "remis", avslutning: "utilstrekkelig materiell" };
+    if (chess.in_draw()) return { resultat: "remis", avslutning: "50-trekksregelen" };
+    return { resultat: null, avslutning: null };
+  }
+
+  /* ---------- Bot ---------- */
+  var engine = null, engineInit = null, pendingBest = null;
+
+  function initEngine() {
+    if (engineInit) return engineInit;
+    engineInit = new Promise(function (res, rej) {
+      var fail = function (msg) { clearTimeout(timer); engineInit = null; try { engine && engine.terminate(); } catch (e) { /* */ } engine = null; rej(new Error(msg)); };
+      var timer = setTimeout(function () { fail("Sjakkmotoren svarte ikke. Last siden på nytt."); }, 45000);
+      try { engine = new Worker(STOCKFISH_FILE); }
+      catch (e) { fail("Klarte ikke å starte sjakkmotoren i denne nettleseren."); return; }
+      engine.onerror = function () { fail("Klarte ikke å laste sjakkmotoren. Sjekk at Stockfish-filene ligger ved siden av index.html."); };
+      engine.onmessage = function (e) {
+        var line = String(e.data || "");
+        if (line === "uciok") engine.postMessage("isready");
+        else if (line === "readyok") {
+          clearTimeout(timer);
+          engine.onmessage = function (ev) {
+            var l = String(ev.data || "");
+            if (l.indexOf("bestmove") === 0 && pendingBest) { var f = pendingBest; pendingBest = null; f(l.split(" ")[1]); }
+          };
+          res();
+        }
+      };
+      engine.postMessage("uci");
+    });
+    return engineInit;
+  }
+
+  function engineMove(fen, lvl) {
+    return initEngine().then(function () {
+      return new Promise(function (res) {
+        pendingBest = res;
+        engine.postMessage("setoption name Skill Level value " + lvl.skill);
+        engine.postMessage("position fen " + fen);
+        engine.postMessage("go " + (lvl.depth ? "depth " + lvl.depth + " " : "") + "movetime " + lvl.ms);
+      });
+    });
+  }
+
+  function chooseBotMove(lvl) {
+    if (lvl.random && Math.random() < lvl.random) {
+      var all = chess.moves({ verbose: true });
+      var pick = all[Math.floor(Math.random() * all.length)];
+      return Promise.resolve(pick.from + pick.to + (pick.promotion || ""));
+    }
+    return engineMove(chess.fen(), lvl);
+  }
+
+  function triggerBot() {
+    if (!cur || cur.type !== "bot" || !isActive() || botThinking) return;
+    if (chess.turn() === myColor()) return;
+    var id = cur.parti.id, lvl = BOT_LEVELS[cur.parti.niva - 1], t0 = Date.now();
+    botThinking = true; busy = true;
+    renderBoardArea();
+    chooseBotMove(lvl).then(function (uci) {
+      return new Promise(function (r) { setTimeout(function () { r(uci); }, Math.max(0, 700 - (Date.now() - t0))); });
+    }).then(function (uci) {
+      if (!cur || cur.parti.id !== id) { botThinking = false; busy = false; return; }
+      var mv = uci && uci !== "(none)" ? chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] || undefined }) : null;
+      if (!mv) throw new Error("Boten fant ikke noe trekk. Last siden på nytt.");
+      cur.trekk.push({ nr: cur.trekk.length + 1, fra: mv.from, til: mv.to, forvandling: mv.promotion || null,
+                       san: mv.san, spiller_id: "bot", dato: null });
+      botThinking = false;
+      var res = computeResult(mv);
+      renderBoardArea();
+      saveBot(res.resultat, res.avslutning, false);
+    }).catch(function (e) {
+      botThinking = false; busy = false;
+      renderBoardArea();
+      handleError(e);
+    });
+  }
+
+  function saveBot(resultat, avslutning, thenBot) {
+    var id = cur.parti.id;
+    busy = true;
+    var list = cur.trekk.map(function (m) {
+      var o = { fra: m.fra, til: m.til, san: m.san };
+      if (m.forvandling) o.forvandling = m.forvandling;
+      return o;
+    });
+    return rpc("sjakk_bot_lagre", { p_kode: code, p_parti: id, p_trekk: list, p_resultat: resultat, p_avslutning: avslutning })
+      .then(function () {
+        busy = false;
+        if (resultat) {
+          return loadBot(id, true).then(refreshSide);
+        }
+        lastSig = "bot|" + id + "|" + cur.trekk.length + "|pågår";
+        renderBoardArea();
+        if (thenBot) triggerBot();
+        else refreshSide();
+      })
+      .catch(function (e) {
+        busy = false;
+        return loadBot(id, true).then(function () { handleError(e); }, function () { handleError(e); });
+      });
+  }
+
+  function renderBotPanel() {
+    var sel = $("botLevel");
+    if (!sel.options.length) {
+      BOT_LEVELS.forEach(function (l, i) {
+        var o = document.createElement("option");
+        o.value = String(i + 1); o.textContent = (i + 1) + ". " + l.navn;
+        sel.appendChild(o);
+      });
+      var saved = null;
+      try { saved = localStorage.getItem(BOT_LEVEL_KEY); } catch (e) { /* */ }
+      sel.value = saved && BOT_LEVELS[saved - 1] ? saved : "1";
+    }
+    $("botLevelText").textContent = BOT_LEVELS[sel.value - 1].tekst;
+    $("botStart").disabled = !botCanStart || busy;
+    $("botNote").textContent = botCanStart ?
+      "Ett nytt parti per dag. Ubegrenset med trekk, og det teller ikke på ratingen." :
+      "Du har startet dagens parti mot boten. Nytt parti kan startes i morgen.";
+  }
+
+  /* ---------- Rangering ---------- */
+  function sparkline(vals) {
+    var pts = [800].concat(vals || []);
+    if (pts.length < 2) return null;
+    var w = 64, h = 20, min = Math.min.apply(null, pts), max = Math.max.apply(null, pts);
+    var span = Math.max(1, max - min);
+    var d = pts.map(function (v, i) {
+      return (i ? "L" : "M") + (i * (w - 2) / (pts.length - 1) + 1).toFixed(1) + " " + (h - 2 - (v - min) / span * (h - 4)).toFixed(1);
+    }).join(" ");
+    var ns = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 " + w + " " + h); svg.setAttribute("width", w); svg.setAttribute("height", h);
+    svg.setAttribute("aria-hidden", "true"); svg.setAttribute("class", "spark");
+    var path = document.createElementNS(ns, "path");
+    path.setAttribute("d", d);
+    svg.appendChild(path);
+    return svg;
+  }
+
+  function renderRanking() {
+    var box = $("ranking");
+    box.innerHTML = "";
+    var mine = ranking.filter(function (p) { return p.id === me.id; })[0];
+    $("meName").textContent = me.navn + (mine ? " · " + mine.rating : "");
+    if (!ranking.length) { box.innerHTML = '<p class="empty">Ingen spillere ennå.</p>'; return; }
+    var table = document.createElement("table");
+    table.className = "ranktable";
+    var head = document.createElement("tr");
+    ["#", "Spiller", "Rating", "", "S-R-T"].forEach(function (t) {
+      var th = document.createElement("th"); th.textContent = t; head.appendChild(th);
+    });
+    table.appendChild(head);
+    ranking.forEach(function (p, i) {
+      var tr = document.createElement("tr");
+      if (p.id === me.id) tr.className = "me";
+      var tap = p.partier - p.seire - p.remis;
+      var cells = [String(i + 1), p.navn, String(p.rating), null, p.seire + "-" + p.remis + "-" + tap];
+      cells.forEach(function (c, j) {
+        var td = document.createElement("td");
+        if (j === 3) { var s = sparkline(p.historikk); if (s) td.appendChild(s); }
+        else td.textContent = c;
+        if (j === 2) td.className = "num";
+        tr.appendChild(td);
+      });
+      table.appendChild(tr);
+    });
+    box.appendChild(table);
   }
 
   function askPromotion(from, to) {
@@ -1355,11 +1684,37 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     if (cur || chess) { renderBoard(); }
   });
 
+  $("botLevel").addEventListener("change", function () {
+    try { localStorage.setItem(BOT_LEVEL_KEY, this.value); } catch (e) { /* */ }
+    renderBotPanel();
+  });
+  $("botStart").addEventListener("click", function () {
+    if (!botCanStart || busy || botThinking) return;
+    var niva = parseInt($("botLevel").value, 10);
+    var msg = $("botMsg");
+    $("botStart").disabled = true;
+    msg.textContent = "Starter parti …";
+    rpc("sjakk_bot_nytt", { p_kode: code, p_niva: niva }).then(function (res) {
+      msg.textContent = res.farge === "w" ? "Du fikk hvit og starter." :
+        "Du fikk svart. " + BOT_LEVELS[niva - 1].navn + " starter.";
+      botCanStart = false;
+      return loadBot(res.id, true).then(refreshSide);
+    }).catch(function (e) {
+      msg.textContent = e.message;
+      refreshSide();
+    });
+  });
+
   $("flip").addEventListener("click", function () { ui.flipped = !ui.flipped; renderBoard(); renderBars(); });
 
   $("resign").addEventListener("click", function () {
     if (!isActive() || !myColor()) return;
     if (!confirm("Vil du gi opp dette partiet?")) return;
+    if (cur.type === "bot") {
+      if (botThinking) return;
+      saveBot(myColor() === "w" ? "svart_vant" : "hvit_vant", "oppgitt", false);
+      return;
+    }
     act("sjakk_gi_opp", {});
   });
 
