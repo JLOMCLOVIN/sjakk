@@ -361,6 +361,17 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
 .drawbanner.sent { border: 1px dashed var(--accent); background: var(--surface); }
 .drawbtns { display: flex; gap: 8px; flex-wrap: wrap; }
 .credit { margin-top: 12px; }
+
+/* ---------- Partiliste i grupper ---------- */
+.gamehead { font-size: 0.95rem; font-weight: 600; color: var(--muted); margin: 14px 0 6px; }
+.gamehead:first-child { margin-top: 0; }
+#gameList .empty { margin-bottom: 4px; }
+.games li.invite { border: 1px solid var(--accent); border-radius: 8px; }
+.games li.invite > button[aria-current="false"]:hover { border-color: transparent; }
+.invbtns { display: flex; gap: 6px; padding: 0 10px 10px; }
+.invbtns .btn { padding: 5px 10px; font-size: 0.9rem; }
+.donegroup { margin-top: 14px; }
+.donegroup summary { cursor: pointer; font-size: 0.95rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
 </style>
 </head>
 <body data-tema="tre">
@@ -409,16 +420,16 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
   <aside>
     <section class="panel">
       <h2>Partier</h2>
-      <ul class="games" id="gameList"><p class="loading">Henter partier …</p></ul>
+      <div id="gameList"><p class="loading">Henter partier …</p></div>
     </section>
     <section class="panel">
-      <h2>Nytt parti</h2>
+      <h2>Inviter til parti</h2>
       <label for="opponent">Motstander</label>
       <select id="opponent"></select>
       <label for="newLimit">Trekk per spiller per dag</label>
       <input type="number" id="newLimit" min="1" max="99" step="1" value="3">
-      <p class="note">Kan ikke endres etter at partiet er startet. Hvem som får hvit, trekkes tilfeldig.</p>
-      <button class="btn primary full mt" id="startGame">Start parti</button>
+      <p class="note">Kan ikke endres etter at partiet er startet. Hvem som får hvit, trekkes tilfeldig. Partiet starter når motstanderen godtar.</p>
+      <button class="btn primary full mt" id="startGame">Send invitasjon</button>
       <p class="note" id="newGameMsg" aria-live="polite"></p>
     </section>
   </aside>
@@ -606,10 +617,22 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
       players = (r[1] || []).filter(function (p) { return p.id !== me.id; });
       renderGameList();
       renderOpponents();
-      if (cur) return loadGame(cur.parti.id, force);
-      if (games.length) return loadGame(games[0].id, true);
-      cur = null; chess = new Chess(); renderBoardArea();
+      if (cur && games.some(function (g) { return g.id === cur.parti.id; })) return loadGame(cur.parti.id, force);
+      var pick = defaultGame();
+      if (pick) return loadGame(pick.id, true).then(renderGameList);
+      cur = null; lastSig = ""; chess = new Chess(); renderBoardArea();
     }).catch(handleError);
+  }
+
+  function isMyTurn(g) {
+    if (g.status !== "pågår") return false;
+    return (g.antall_trekk % 2 === 0 ? g.hvit : g.svart) === me.id;
+  }
+  function defaultGame() {
+    var act = games.filter(function (g) { return g.status === "pågår"; });
+    return act.filter(function (g) { return isMyTurn(g) && g.mine_i_dag < g.trekk_per_dag; })[0] ||
+      games.filter(function (g) { return g.status === "invitert" && g.invitert_av !== me.id; })[0] ||
+      act[0] || games.filter(function (g) { return g.status === "invitert"; })[0] || games[0] || null;
   }
 
   function loadGame(id, force) {
@@ -631,6 +654,12 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
   }
 
   function handleError(e) {
+    if (e && e.message === "Fant ikke partiet" && cur) {
+      cur = null; lastSig = "";
+      refreshAll(true);
+      showStatus("Partiet finnes ikke lenger. Invitasjonen kan ha blitt trukket tilbake.", "alert");
+      return;
+    }
     if (e && e.message === "Ukjent kode") { writeCode(null); startLogin("Koden din er endret. Logg inn med den nye koden."); return; }
     showStatus(e && e.message ? e.message : "Noe gikk galt.", "alert");
   }
@@ -659,15 +688,21 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
   function usedToday(playerId) {
     return cur.trekk.filter(function (m) { return m.spiller_id === playerId && m.dato === cur.i_dag; }).length;
   }
-  function isOver() { return cur && cur.parti.status !== "pågår"; }
+  var DONE = ["hvit_vant", "svart_vant", "remis", "avslått"];
+  function isOver() { return !!cur && DONE.indexOf(cur.parti.status) >= 0; }
+  function isActive() { return !!cur && cur.parti.status === "pågår"; }
   function canMove() {
-    if (!cur || isOver() || busy || ui.view !== null) return false;
+    if (!isActive() || busy || ui.view !== null) return false;
     if (myColor() !== chess.turn()) return false;
     return usedToday(me.id) < cur.parti.trekk_per_dag;
   }
 
   function resultText() {
     var p = cur.parti;
+    if (p.status === "avslått") {
+      var inv = p.invitert_av === p.hvit ? p.svart_navn : p.hvit_navn;
+      return inv + " takket nei til partiet.";
+    }
     if (p.status === "remis") {
       var why = { "avtalt remis": "Remis etter avtale.", "patt": "Patt. Partiet endte remis.",
         "trefoldig gjentakelse": "Samme stilling tre ganger. Partiet endte remis.",
@@ -683,51 +718,139 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
   }
 
   /* ---------- Tegning ---------- */
+  function otherName(g) { return g.hvit === me.id ? g.svart_navn : g.hvit_navn; }
+
+  function gameState(g) {
+    if (g.status === "invitert") {
+      return g.invitert_av === me.id ? { t: "Venter på svar fra " + otherName(g) } :
+        { t: otherName(g) + " vil spille med deg", mine: true };
+    }
+    if (g.status === "avslått") return { t: g.invitert_av === me.id ? otherName(g) + " takket nei" : "Du takket nei" };
+    if (g.status === "remis") return { t: "Remis" };
+    if (g.status === "hvit_vant" || g.status === "svart_vant") {
+      var winId = g.status === "hvit_vant" ? g.hvit : g.svart;
+      return { t: winId === me.id ? "Du vant" : otherName(g) + " vant" };
+    }
+    var s;
+    if (isMyTurn(g)) {
+      var left = g.trekk_per_dag - g.mine_i_dag;
+      s = left > 0 ? { t: "Din tur", mine: true } : { t: "Din tur i morgen" };
+    } else s = { t: "Venter på " + otherName(g) };
+    if (g.remis_tilbud) {
+      if (g.remis_tilbud === me.id) s.t += ". Du har tilbudt remis";
+      else { s.t += ". Remis tilbudt"; s.mine = true; }
+    }
+    return s;
+  }
+
+  function gameItem(g) {
+    var li = document.createElement("li");
+    var b = document.createElement("button");
+    b.setAttribute("aria-current", cur && cur.parti.id === g.id ? "true" : "false");
+    var who = document.createElement("span");
+    who.className = "who";
+    who.textContent = g.hvit_navn + " mot " + g.svart_navn;
+    var lim = document.createElement("span");
+    lim.className = "state";
+    lim.textContent = g.trekk_per_dag + " trekk per dag. ";
+    var stt = gameState(g);
+    var st = document.createElement("span");
+    st.className = "state" + (stt.mine ? " mine" : "");
+    st.textContent = stt.t;
+    b.appendChild(who); b.appendChild(lim); b.appendChild(st);
+    b.addEventListener("click", function () {
+      if (busy) return;
+      loadGame(g.id, true).then(renderGameList).catch(handleError);
+    });
+    li.appendChild(b);
+
+    if (g.status === "invitert") {
+      li.className = "invite";
+      var row = document.createElement("div");
+      row.className = "invbtns";
+      if (g.invitert_av === me.id) {
+        row.appendChild(smallBtn("Trekk tilbake", false, function () { answerInvite(g.id, "trekk_tilbake"); }));
+      } else {
+        row.appendChild(smallBtn("Godta", true, function () { answerInvite(g.id, "godta"); }));
+        row.appendChild(smallBtn("Avslå", false, function () { answerInvite(g.id, "avslå"); }));
+      }
+      li.appendChild(row);
+    }
+    return li;
+  }
+
+  function smallBtn(t, primary, fn) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "btn" + (primary ? " primary" : ""); b.textContent = t;
+    b.disabled = busy;
+    b.addEventListener("click", fn);
+    return b;
+  }
+
   function renderGameList() {
-    var ul = $("gameList");
-    ul.innerHTML = "";
+    var root = $("gameList");
+    root.innerHTML = "";
     if (!games.length) {
       var p = document.createElement("p");
       p.className = "empty";
-      p.textContent = players.length ? "Ingen partier ennå. Start et nytt parti nedenfor." : "Ingen partier ennå.";
-      ul.appendChild(p);
+      p.textContent = players.length ? "Ingen partier ennå. Inviter noen nedenfor." : "Ingen partier ennå.";
+      root.appendChild(p);
       return;
     }
-    games.forEach(function (g) {
-      var li = document.createElement("li");
-      var b = document.createElement("button");
-      b.setAttribute("aria-current", cur && cur.parti.id === g.id ? "true" : "false");
-      var who = document.createElement("span");
-      who.className = "who";
-      who.textContent = g.hvit_navn + " mot " + g.svart_navn;
-      var lim = document.createElement("span");
-      lim.className = "state";
-      lim.textContent = g.trekk_per_dag + " trekk per dag. ";
-      var st = document.createElement("span");
-      st.className = "state";
-      if (g.status !== "pågår") {
-        st.textContent = g.status === "remis" ? "Remis" : ((g.status === "hvit_vant" ? g.hvit_navn : g.svart_navn) + " vant");
-      } else {
-        var whiteToMove = g.antall_trekk % 2 === 0;
-        var mine = (whiteToMove ? g.hvit : g.svart) === me.id;
-        if (mine) {
-          var left = g.trekk_per_dag - g.mine_i_dag;
-          st.textContent = left > 0 ? "Din tur" : "Din tur i morgen";
-          if (left > 0) st.classList.add("mine");
-        } else {
-          st.textContent = "Venter på " + (whiteToMove ? g.hvit_navn : g.svart_navn);
-        }
-        if (g.remis_tilbud) {
-          st.textContent += g.remis_tilbud === me.id ? ". Du har tilbudt remis" : ". Remis tilbudt";
-        }
+    var inv = games.filter(function (g) { return g.status === "invitert"; });
+    var act = games.filter(function (g) { return g.status === "pågår"; });
+    var done = games.filter(function (g) { return DONE.indexOf(g.status) >= 0; });
+    // Invitasjoner til meg først
+    inv.sort(function (a, b) { return (a.invitert_av === me.id) - (b.invitert_av === me.id); });
+    // Partier der det er min tur først
+    act.sort(function (a, b) { return (isMyTurn(b) ? 1 : 0) - (isMyTurn(a) ? 1 : 0); });
+
+    if (inv.length) addSection("Invitasjoner", inv);
+    addSection("Pågående", act, "Ingen pågående partier.");
+    if (done.length) {
+      var det = document.createElement("details");
+      det.className = "donegroup";
+      if (cur && DONE.indexOf(cur.parti.status) >= 0) det.open = true;
+      var sum = document.createElement("summary");
+      sum.textContent = "Ferdige (" + done.length + ")";
+      det.appendChild(sum);
+      det.appendChild(list(done));
+      root.appendChild(det);
+    }
+
+    function addSection(title, arr, emptyText) {
+      var h = document.createElement("h3");
+      h.className = "gamehead"; h.textContent = title;
+      root.appendChild(h);
+      if (!arr.length) {
+        var p = document.createElement("p");
+        p.className = "empty"; p.textContent = emptyText;
+        root.appendChild(p);
+        return;
       }
-      b.appendChild(who); b.appendChild(lim); b.appendChild(st);
-      b.addEventListener("click", function () {
-        if (busy) return;
-        loadGame(g.id, true).then(renderGameList).catch(handleError);
+      root.appendChild(list(arr));
+    }
+    function list(arr) {
+      var ul = document.createElement("ul");
+      ul.className = "games";
+      arr.forEach(function (g) { ul.appendChild(gameItem(g)); });
+      return ul;
+    }
+  }
+
+  function answerInvite(id, handling) {
+    if (busy) return;
+    if (handling === "avslå" && !confirm("Takke nei til dette partiet?")) return;
+    if (handling === "trekk_tilbake" && !confirm("Trekke tilbake invitasjonen? Partiet slettes.")) return;
+    busy = true; renderBoardArea(); renderGameList();
+    rpc("sjakk_invitasjon", { p_kode: code, p_parti: id, p_handling: handling }).then(function () {
+      busy = false;
+      if (handling === "trekk_tilbake" && cur && cur.parti.id === id) { cur = null; lastSig = ""; }
+      return refreshAll(true).then(function () {
+        if (handling === "godta") return loadGame(id, true).then(renderGameList);
       });
-      li.appendChild(b);
-      ul.appendChild(li);
+    }).catch(function (e) {
+      busy = false; renderGameList(); handleError(e);
     });
   }
 
@@ -751,7 +874,7 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
 
   function renderBoardArea() {
     renderBoard(); renderBars(); renderStatus(); renderMoves(); renderDraw(); renderNav();
-    $("resign").disabled = !cur || isOver() || !myColor() || busy;
+    $("resign").disabled = !isActive() || !myColor() || busy;
     $("flip").disabled = !cur;
   }
 
@@ -860,7 +983,7 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     dot.className = "dot " + color;
     left.appendChild(dot);
     left.appendChild(document.createTextNode(name + (pid === me.id ? " (deg)" : "")));
-    if (!isOver() && chess.turn() === color) {
+    if (isActive() && chess.turn() === color) {
       var tm = document.createElement("span");
       tm.className = "turnmark"; tm.textContent = "i trekket";
       left.appendChild(tm);
@@ -900,6 +1023,12 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
       return;
     }
     if (isOver()) { showStatus(resultText(), "good"); return; }
+    if (cur.parti.status === "invitert") {
+      showStatus(cur.parti.invitert_av === me.id ?
+        "Partiet starter når " + nameOf(myColor() === "w" ? "b" : "w") + " har godtatt invitasjonen." :
+        "Godta invitasjonen for å starte partiet.");
+      return;
+    }
     var check = chess.in_check() ? "Sjakk! " : "";
     var nextName = nameOf(chess.turn());
     var kind = chess.in_check() ? "alert" : "";
@@ -946,7 +1075,33 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
   function renderDraw() {
     var box = $("drawActions"), banner = $("drawBanner");
     box.innerHTML = ""; banner.innerHTML = ""; banner.hidden = true; banner.className = "drawbanner";
-    if (!cur || isOver() || !myColor()) return;
+    banner.removeAttribute("role");
+    if (!cur || !myColor()) return;
+
+    if (cur.parti.status === "invitert") {
+      var oppName = nameOf(myColor() === "w" ? "b" : "w");
+      var colorTxt = myColor() === "w" ? "hvit" : "svart";
+      var row0 = document.createElement("div"); row0.className = "drawbtns";
+      var h, p0 = document.createElement("p");
+      banner.hidden = false;
+      if (cur.parti.invitert_av === me.id) {
+        banner.classList.add("sent");
+        p0.textContent = "Du har invitert " + oppName + " til et parti med " + cur.parti.trekk_per_dag +
+          " trekk per dag. Du har " + colorTxt + ". Venter på svar.";
+        banner.appendChild(p0); banner.appendChild(row0);
+        row0.appendChild(smallBtn("Trekk tilbake invitasjonen", false, function () { answerInvite(cur.parti.id, "trekk_tilbake"); }));
+      } else {
+        banner.classList.add("incoming");
+        banner.setAttribute("role", "alert");
+        h = document.createElement("h3"); h.textContent = oppName + " inviterer deg til et parti";
+        p0.textContent = cur.parti.trekk_per_dag + " trekk per dag. Du får " + colorTxt + ".";
+        banner.appendChild(h); banner.appendChild(p0); banner.appendChild(row0);
+        row0.appendChild(smallBtn("Godta og start", true, function () { answerInvite(cur.parti.id, "godta"); }));
+        row0.appendChild(smallBtn("Avslå", false, function () { answerInvite(cur.parti.id, "avslå"); }));
+      }
+      return;
+    }
+    if (!isActive()) return;
     var offer = cur.parti.remis_tilbud;
     var opp = nameOf(myColor() === "w" ? "b" : "w");
 
@@ -1172,9 +1327,10 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
     if (!opp) { msg.textContent = "Velg en motstander."; return; }
     if (!isFinite(lim) || lim < 1 || lim > 99) { msg.textContent = "Velg mellom 1 og 99 trekk per dag."; return; }
     $("startGame").disabled = true;
-    msg.textContent = "Starter parti …";
+    msg.textContent = "Sender invitasjon …";
     rpc("sjakk_nytt_parti", { p_kode: code, p_motstander: opp, p_trekk_per_dag: lim }).then(function (res) {
-      msg.textContent = res.jeg_hvit ? "Du fikk hvit og starter." : "Du fikk svart. Motstanderen starter.";
+      var oppName = $("opponent").selectedOptions[0] ? $("opponent").selectedOptions[0].textContent : "motstanderen";
+      msg.textContent = "Invitasjon sendt til " + oppName + ". Du får " + (res.jeg_hvit ? "hvit" : "svart") + " hvis invitasjonen godtas.";
       return loadGame(res.id, true).then(refreshList);
     }).catch(function (e) {
       msg.textContent = e.message;
@@ -1202,7 +1358,7 @@ body[data-tema="sh"] .piece.w { filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)
   $("flip").addEventListener("click", function () { ui.flipped = !ui.flipped; renderBoard(); renderBars(); });
 
   $("resign").addEventListener("click", function () {
-    if (!cur || isOver() || !myColor()) return;
+    if (!isActive() || !myColor()) return;
     if (!confirm("Vil du gi opp dette partiet?")) return;
     act("sjakk_gi_opp", {});
   });
