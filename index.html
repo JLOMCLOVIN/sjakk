@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fjernsjakk</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♞</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #E6EBE9;
+  --surface: #F6F8F7;
+  --ink: #23302F;
+  --muted: #5D6E6B;
+  --line: #C7D1CE;
+  --sq-light: #DCE3D8;
+  --sq-dark: #6F8C7E;
+  --accent: #2C6A9E;
+  --accent-ink: #FFFFFF;
+  --check: #B3402E;
+  --stamp-used: #B9C4C1;
+  --stamp-free: #2C6A9E;
+  --hint: rgba(35, 48, 47, 0.28);
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161D1D;
+    --surface: #1F2828;
+    --ink: #E3EAE7;
+    --muted: #93A39F;
+    --line: #34413F;
+    --sq-light: #A9B8AA;
+    --sq-dark: #4E6A5D;
+    --accent: #6FA8DA;
+    --accent-ink: #0F1A24;
+    --check: #E06A55;
+    --stamp-used: #3A4745;
+    --stamp-free: #6FA8DA;
+    --hint: rgba(20, 28, 27, 0.4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161D1D; --surface: #1F2828; --ink: #E3EAE7; --muted: #93A39F; --line: #34413F;
+  --sq-light: #A9B8AA; --sq-dark: #4E6A5D; --accent: #6FA8DA; --accent-ink: #0F1A24;
+  --check: #E06A55; --stamp-used: #3A4745; --stamp-free: #6FA8DA; --hint: rgba(20,28,27,0.4);
+  color-scheme: dark;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Spline Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 280px;
+  gap: 24px;
+  align-items: start;
+}
+header.top {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+h1 { font-size: 1.75rem; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+.today { color: var(--muted); font-size: 0.95rem; }
+h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 10px; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+}
+.panel + .panel { margin-top: 16px; }
+
+/* Partiliste */
+.games { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.games button {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.games button:hover { border-color: var(--line); }
+.games button[aria-current="true"] { border-color: var(--accent); background: var(--bg); }
+.games .who { font-weight: 600; display: block; }
+.games .state { font-size: 0.85rem; color: var(--muted); }
+.games .state.mine { color: var(--accent); font-weight: 600; }
+.empty { color: var(--muted); font-size: 0.95rem; margin: 0; }
+
+label { display: block; font-size: 0.9rem; color: var(--muted); margin: 10px 0 4px; }
+select, input[type="text"], input[type="number"] {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+}
+.row { display: flex; gap: 8px; }
+.row > * { flex: 1; }
+.btn {
+  border: 1px solid var(--line);
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.quiet { background: transparent; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.mt { margin-top: 12px; }
+.full { width: 100%; }
+
+/* Brett */
+.boardcol { display: grid; gap: 12px; }
+.player-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+}
+.player-bar .name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.player-bar .dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--muted); }
+.player-bar .dot.w { background: #F7F7F2; }
+.player-bar .dot.b { background: #1F2525; }
+.player-bar .turnmark { font-size: 0.85rem; color: var(--accent); font-weight: 600; }
+.stamps { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.stamp {
+  width: 18px; height: 22px;
+  border-radius: 2px;
+  background: var(--stamp-free);
+  -webkit-mask: radial-gradient(circle 2.2px at 0 0, transparent 98%, #000) 0 0 / 4.4px 4.4px;
+  mask: radial-gradient(circle 2.2px, transparent 98%, #000) -2.2px -2.2px / 4.4px 4.4px;
+}
+.stamp.used { background: var(--stamp-used); }
+.stampinfo { font-size: 0.8rem; color: var(--muted); text-align: right; }
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  container-type: inline-size;
+  aspect-ratio: 1;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.sq {
+  position: relative;
+  border: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(22px, 7vw, 54px);
+  font-size: 10.5cqw;
+  line-height: 1;
+  cursor: default;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  touch-action: none;
+}
+.sq.dragfrom .piece { opacity: 0.25; }
+.ghost.piece {
+  position: fixed;
+  left: 0; top: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 20;
+  line-height: 1;
+}
+label.toggle { display: flex; align-items: center; gap: 8px; color: var(--ink); margin-top: 0; cursor: pointer; }
+label.toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.sq.light { background: var(--sq-light); }
+.sq.dark { background: var(--sq-dark); }
+.sq.clickable { cursor: pointer; }
+.sq.last::after {
+  content: ""; position: absolute; inset: 0;
+  background: rgba(240, 200, 80, 0.38);
+  pointer-events: none;
+}
+.sq.sel::after {
+  content: ""; position: absolute; inset: 0;
+  box-shadow: inset 0 0 0 4px var(--accent);
+  pointer-events: none;
+}
+.sq.check { background: radial-gradient(circle, var(--check) 30%, transparent 75%), var(--sq-dark); }
+.sq.light.check { background: radial-gradient(circle, var(--check) 30%, transparent 75%), var(--sq-light); }
+.sq .hint {
+  position: absolute; width: 28%; height: 28%; border-radius: 50%;
+  background: var(--hint); pointer-events: none;
+}
+.sq .hint.cap {
+  width: 88%; height: 88%; background: transparent;
+  box-shadow: inset 0 0 0 5px var(--hint);
+}
+.piece { position: relative; z-index: 1; pointer-events: none; }
+.piece.w { color: #FAFAF6; text-shadow: 0 0 1px #1F2525, 0 0 1px #1F2525, 0 0 2px #1F2525, 0 1px 0 #1F2525; }
+.piece.b { color: #1F2525; text-shadow: 0 0 1px #FAFAF6; }
+.coord {
+  position: absolute; font-size: 10px; font-weight: 600; line-height: 1;
+  opacity: 0.75; pointer-events: none;
+}
+.coord.file { right: 3px; bottom: 3px; }
+.coord.rank { left: 3px; top: 3px; }
+.sq.light .coord { color: var(--sq-dark); }
+.sq.dark .coord { color: var(--sq-light); }
+
+.status {
+  max-width: 620px; width: 100%; margin: 0 auto;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  min-height: 46px;
+}
+.status.alert { border-color: var(--check); }
+.status.good { border-color: var(--accent); }
+.boardactions { max-width: 620px; width: 100%; margin: 0 auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.drawactions { display: contents; }
+.drawactions .info { flex-basis: 100%; color: var(--ink); font-weight: 600; margin-top: 4px; }
+
+/* Trekkliste */
+.moves {
+  display: grid;
+  grid-template-columns: 2.4em 1fr 1fr;
+  gap: 2px 8px;
+  font-variant-numeric: tabular-nums;
+  max-height: 340px;
+  overflow-y: auto;
+  font-size: 0.95rem;
+}
+.moves .n { color: var(--muted); }
+.note { font-size: 0.85rem; color: var(--muted); margin: 8px 0 0; }
+
+/* Forvandling */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  display: none; align-items: center; justify-content: center; z-index: 10;
+}
+.overlay.open { display: flex; }
+.promo { background: var(--surface); border-radius: 10px; padding: 16px; border: 1px solid var(--line); }
+.promo .row button { font-size: 44px; line-height: 1; padding: 6px 12px; background: var(--sq-light); border: 1px solid var(--line); border-radius: 6px; }
+
+@media (max-width: 980px) {
+  .wrap { grid-template-columns: 1fr; }
+  .boardcol { order: -1; }
+  header.top { order: -2; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ---------- Ferdig side: innlogging og topplinje ---------- */
+.view[hidden] { display: none !important; }
+.gate {
+  max-width: 420px;
+  margin: 12vh auto 0;
+  padding: 0 16px;
+}
+.gate h1 { margin-bottom: 6px; }
+.gate p.lead { color: var(--muted); margin: 0 0 20px; }
+.gate .panel { padding: 20px; }
+.err { color: var(--check); font-size: 0.9rem; margin: 10px 0 0; min-height: 1.2em; }
+.userbox { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.userbox .who { font-weight: 600; }
+.loading { color: var(--muted); }
+.sq.busy { cursor: progress; }
+</style>
+</head>
+<body>
+<!-- Innlogging -->
+<div class="view gate" id="loginView" hidden>
+  <h1>Fjernsjakk</h1>
+  <p class="lead">Sjakk med venner, noen trekk om dagen.</p>
+  <div class="panel">
+    <label for="codeInput">Din kode</label>
+    <input type="text" id="codeInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="For eksempel tre eller fire ord">
+    <button class="btn primary full mt" id="loginBtn">Logg inn</button>
+    <p class="err" id="loginErr" aria-live="polite"></p>
+  </div>
+</div>
+
+<!-- Velg navn -->
+<div class="view gate" id="nameView" hidden>
+  <h1>Velg navnet ditt</h1>
+  <p class="lead">Navnet vises for de du spiller mot. Du kan endre det senere.</p>
+  <div class="panel">
+    <label for="nameInput">Navn</label>
+    <input type="text" id="nameInput" maxlength="24" autocomplete="nickname">
+    <button class="btn primary full mt" id="saveNameBtn">Lagre navn</button>
+    <button class="btn quiet full mt" id="cancelNameBtn" hidden>Avbryt</button>
+    <p class="err" id="nameErr" aria-live="polite"></p>
+  </div>
+</div>
+
+<!-- Selve spillet -->
+<div class="view wrap" id="appView" hidden>
+  <header class="top">
+    <h1>Fjernsjakk</h1>
+    <div class="userbox">
+      <span class="who" id="meName"></span>
+      <button class="btn quiet" id="renameBtn">Bytt navn</button>
+      <button class="btn quiet" id="logoutBtn">Logg ut</button>
+    </div>
+  </header>
+
+  <aside>
+    <section class="panel">
+      <h2>Partier</h2>
+      <ul class="games" id="gameList"><p class="loading">Henter partier …</p></ul>
+    </section>
+    <section class="panel">
+      <h2>Nytt parti</h2>
+      <label for="opponent">Motstander</label>
+      <select id="opponent"></select>
+      <label for="newLimit">Trekk per spiller per dag</label>
+      <input type="number" id="newLimit" min="1" max="99" step="1" value="3">
+      <p class="note">Kan ikke endres etter at partiet er startet. Hvem som får hvit, trekkes tilfeldig.</p>
+      <button class="btn primary full mt" id="startGame">Start parti</button>
+      <p class="note" id="newGameMsg" aria-live="polite"></p>
+    </section>
+  </aside>
+
+  <main class="boardcol">
+    <div class="player-bar" id="barTop"></div>
+    <div class="board" id="board" role="grid" aria-label="Sjakkbrett"></div>
+    <div class="player-bar" id="barBottom"></div>
+    <div class="status" id="status" aria-live="polite"></div>
+    <div class="boardactions">
+      <button class="btn" id="flip">Snu brettet</button>
+      <button class="btn" id="resign">Gi opp</button>
+      <span class="drawactions" id="drawActions"></span>
+    </div>
+  </main>
+
+  <aside>
+    <section class="panel">
+      <h2>Trekk</h2>
+      <div class="moves" id="moves"></div>
+    </section>
+  </aside>
+</div>
+
+<div class="overlay" id="promoOverlay" role="dialog" aria-modal="true" aria-label="Velg brikke">
+  <div class="promo">
+    <h2>Bonden forvandles til</h2>
+    <div class="row" id="promoChoices"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Oppsett ---------- */
+  var SUPABASE_URL = "https://hmutcnvixydixymfldut.supabase.co";
+  var SUPABASE_KEY = "sb_publishable_kMmJIYAILLcjAzP2NtYZ9w_vEPYuAor"; // offentlig nøkkel, trygg å vise
+  var CODE_KEY = "fjernsjakk-kode";
+  var POLL_MS = 20000;
+
+  var GLYPH = { k: "\u265A", q: "\u265B", r: "\u265C", b: "\u265D", n: "\u265E", p: "\u265F" };
+  var VS = "\uFE0E";
+  var FILES = "abcdefgh";
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- Tilstand ---------- */
+  var code = null;           // personlig kode
+  var me = null;             // { id, navn }
+  var games = [];            // fra sjakk_mine_partier
+  var players = [];          // fra sjakk_spillerliste
+  var cur = null;            // { parti, trekk, i_dag }
+  var chess = null;
+  var ui = { selected: null, targets: [], flipped: false };
+  var busy = false;
+  var drag = null, ghost = null;
+  var pollTimer = null;
+  var lastSig = "";
+
+  /* ---------- Lagring i nettleseren ---------- */
+  function readCode() { try { return localStorage.getItem(CODE_KEY); } catch (e) { return null; } }
+  function writeCode(v) { try { v ? localStorage.setItem(CODE_KEY, v) : localStorage.removeItem(CODE_KEY); } catch (e) { /* valgfritt */ } }
+
+  /* ---------- Kall til Supabase ---------- */
+  function rpc(fn, args) {
+    return fetch(SUPABASE_URL + "/rest/v1/rpc/" + fn, {
+      method: "POST",
+      headers: { "apikey": SUPABASE_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify(args || {})
+    }).catch(function () {
+      throw new Error("Fikk ikke kontakt med serveren. Sjekk nettforbindelsen og prøv igjen.");
+    }).then(function (res) {
+      return res.text().then(function (txt) {
+        var data = null;
+        if (txt) { try { data = JSON.parse(txt); } catch (e) { data = txt; } }
+        if (!res.ok) {
+          var msg = data && data.message ? data.message : "Noe gikk galt (" + res.status + ").";
+          throw new Error(msg);
+        }
+        return data;
+      });
+    });
+  }
+
+  /* ---------- Visninger ---------- */
+  function show(view) {
+    ["loginView", "nameView", "appView"].forEach(function (v) { $(v).hidden = v !== view; });
+  }
+
+  function startLogin(prefill) {
+    stopPolling();
+    show("loginView");
+    $("loginErr").textContent = prefill || "";
+    $("codeInput").value = "";
+    $("codeInput").focus();
+  }
+
+  function tryLogin(c, silent) {
+    $("loginErr").textContent = "";
+    $("loginBtn").disabled = true;
+    return rpc("sjakk_logg_inn", { p_kode: c }).then(function (res) {
+      code = c; me = res; writeCode(c);
+      if (!me.navn) { askName(false); return; }
+      enterApp();
+    }).catch(function (e) {
+      if (e.message === "Ukjent kode") {
+        writeCode(null);
+        startLogin(silent ? "" : "Fant ingen spiller med den koden. Sjekk at ordene er riktige.");
+      } else {
+        startLogin(e.message);
+        $("codeInput").value = c;
+      }
+    }).then(function () { $("loginBtn").disabled = false; });
+  }
+
+  function askName(canCancel) {
+    stopPolling();
+    show("nameView");
+    $("nameErr").textContent = "";
+    $("nameInput").value = me && me.navn ? me.navn : "";
+    $("cancelNameBtn").hidden = !canCancel;
+    $("nameInput").focus();
+  }
+
+  function enterApp() {
+    show("appView");
+    $("meName").textContent = me.navn;
+    refreshAll(true);
+    startPolling();
+  }
+
+  /* ---------- Henting ---------- */
+  function refreshAll(force) {
+    return Promise.all([
+      rpc("sjakk_mine_partier", { p_kode: code }),
+      rpc("sjakk_spillerliste", { p_kode: code })
+    ]).then(function (r) {
+      games = r[0] || [];
+      players = (r[1] || []).filter(function (p) { return p.id !== me.id; });
+      renderGameList();
+      renderOpponents();
+      if (cur) return loadGame(cur.parti.id, force);
+      if (games.length) return loadGame(games[0].id, true);
+      cur = null; chess = new Chess(); renderBoardArea();
+    }).catch(handleError);
+  }
+
+  function loadGame(id, force) {
+    return rpc("sjakk_hent_parti", { p_kode: code, p_parti: id }).then(function (res) {
+      var sig = id + "|" + res.trekk.length + "|" + res.parti.status + "|" + res.parti.remis_tilbud + "|" + res.i_dag;
+      var changedGame = !cur || cur.parti.id !== id;
+      if (!force && !changedGame && sig === lastSig) return;
+      lastSig = sig;
+      cur = res;
+      chess = new Chess();
+      cur.trekk.forEach(function (m) {
+        chess.move({ from: m.fra, to: m.til, promotion: m.forvandling || undefined });
+      });
+      if (changedGame) ui.flipped = myColor() === "b";
+      ui.selected = null; ui.targets = [];
+      renderBoardArea();
+    });
+  }
+
+  function handleError(e) {
+    if (e && e.message === "Ukjent kode") { writeCode(null); startLogin("Koden din er endret. Logg inn med den nye koden."); return; }
+    showStatus(e && e.message ? e.message : "Noe gikk galt.", "alert");
+  }
+
+  function startPolling() {
+    stopPolling();
+    pollTimer = setInterval(function () {
+      if (document.hidden || busy || drag) return;
+      refreshAll(false);
+    }, POLL_MS);
+  }
+  function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && me && code && !$("appView").hidden && !busy && !drag) refreshAll(false);
+  });
+
+  /* ---------- Hjelpere for partiet ---------- */
+  function myColor() {
+    if (!cur) return null;
+    if (cur.parti.hvit === me.id) return "w";
+    if (cur.parti.svart === me.id) return "b";
+    return null;
+  }
+  function nameOf(color) { return color === "w" ? cur.parti.hvit_navn : cur.parti.svart_navn; }
+  function idOf(color) { return color === "w" ? cur.parti.hvit : cur.parti.svart; }
+  function usedToday(playerId) {
+    return cur.trekk.filter(function (m) { return m.spiller_id === playerId && m.dato === cur.i_dag; }).length;
+  }
+  function isOver() { return cur && cur.parti.status !== "pågår"; }
+  function canMove() {
+    if (!cur || isOver() || busy) return false;
+    if (myColor() !== chess.turn()) return false;
+    return usedToday(me.id) < cur.parti.trekk_per_dag;
+  }
+
+  function resultText() {
+    var p = cur.parti;
+    if (p.status === "remis") {
+      var why = { "avtalt remis": "Remis etter avtale.", "patt": "Patt. Partiet endte remis.",
+        "trefoldig gjentakelse": "Samme stilling tre ganger. Partiet endte remis.",
+        "utilstrekkelig materiell": "Ingen av sidene kan sette matt. Partiet endte remis.",
+        "50-trekksregelen": "50-trekksregelen. Partiet endte remis." }[p.avslutning];
+      return why || "Partiet endte remis.";
+    }
+    var winner = p.status === "hvit_vant" ? p.hvit_navn : p.svart_navn;
+    var loser = p.status === "hvit_vant" ? p.svart_navn : p.hvit_navn;
+    if (p.avslutning === "oppgitt") return loser + " ga opp. " + winner + " vant.";
+    if (p.avslutning === "sjakkmatt") return "Sjakkmatt. " + winner + " vant.";
+    return winner + " vant.";
+  }
+
+  /* ---------- Tegning ---------- */
+  function renderGameList() {
+    var ul = $("gameList");
+    ul.innerHTML = "";
+    if (!games.length) {
+      var p = document.createElement("p");
+      p.className = "empty";
+      p.textContent = players.length ? "Ingen partier ennå. Start et nytt parti nedenfor." : "Ingen partier ennå.";
+      ul.appendChild(p);
+      return;
+    }
+    games.forEach(function (g) {
+      var li = document.createElement("li");
+      var b = document.createElement("button");
+      b.setAttribute("aria-current", cur && cur.parti.id === g.id ? "true" : "false");
+      var who = document.createElement("span");
+      who.className = "who";
+      who.textContent = g.hvit_navn + " mot " + g.svart_navn;
+      var lim = document.createElement("span");
+      lim.className = "state";
+      lim.textContent = g.trekk_per_dag + " trekk per dag. ";
+      var st = document.createElement("span");
+      st.className = "state";
+      if (g.status !== "pågår") {
+        st.textContent = g.status === "remis" ? "Remis" : ((g.status === "hvit_vant" ? g.hvit_navn : g.svart_navn) + " vant");
+      } else {
+        var whiteToMove = g.antall_trekk % 2 === 0;
+        var mine = (whiteToMove ? g.hvit : g.svart) === me.id;
+        if (mine) {
+          var left = g.trekk_per_dag - g.mine_i_dag;
+          st.textContent = left > 0 ? "Din tur" : "Din tur i morgen";
+          if (left > 0) st.classList.add("mine");
+        } else {
+          st.textContent = "Venter på " + (whiteToMove ? g.hvit_navn : g.svart_navn);
+        }
+        if (g.remis_tilbud) {
+          st.textContent += g.remis_tilbud === me.id ? ". Du har tilbudt remis" : ". Remis tilbudt";
+        }
+      }
+      b.appendChild(who); b.appendChild(lim); b.appendChild(st);
+      b.addEventListener("click", function () {
+        if (busy) return;
+        loadGame(g.id, true).then(renderGameList).catch(handleError);
+      });
+      li.appendChild(b);
+      ul.appendChild(li);
+    });
+  }
+
+  function renderOpponents() {
+    var sel = $("opponent"), prev = sel.value;
+    sel.innerHTML = "";
+    if (!players.length) {
+      var o = document.createElement("option");
+      o.value = ""; o.textContent = "Ingen andre spillere ennå";
+      sel.appendChild(o);
+      sel.disabled = true; $("startGame").disabled = true;
+      return;
+    }
+    sel.disabled = false; $("startGame").disabled = false;
+    players.forEach(function (p) {
+      var o = document.createElement("option");
+      o.value = p.id; o.textContent = p.navn; sel.appendChild(o);
+    });
+    if (players.some(function (p) { return p.id === prev; })) sel.value = prev;
+  }
+
+  function renderBoardArea() {
+    renderBoard(); renderBars(); renderStatus(); renderMoves(); renderDraw();
+    $("resign").disabled = !cur || isOver() || !myColor() || busy;
+    $("flip").disabled = !cur;
+  }
+
+  function pieceName(t) {
+    return { k: "konge", q: "dronning", r: "tårn", b: "løper", n: "springer", p: "bonde" }[t];
+  }
+
+  function renderBoard() {
+    var board = $("board");
+    board.innerHTML = "";
+    var last = cur && cur.trekk.length ? cur.trekk[cur.trekk.length - 1] : null;
+    var kingInCheck = null;
+    if (chess.in_check()) {
+      chess.SQUARES.forEach(function (s) {
+        var pc = chess.get(s);
+        if (pc && pc.type === "k" && pc.color === chess.turn()) kingInCheck = s;
+      });
+    }
+    var movable = canMove();
+    var ranks = ui.flipped ? [1, 2, 3, 4, 5, 6, 7, 8] : [8, 7, 6, 5, 4, 3, 2, 1];
+    var files = ui.flipped ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
+
+    ranks.forEach(function (r, ri) {
+      files.forEach(function (f, fi) {
+        var sq = FILES[f] + r;
+        var el = document.createElement("button");
+        el.type = "button";
+        el.className = "sq " + ((f + r) % 2 === 0 ? "light" : "dark") + (busy ? " busy" : "");
+        el.dataset.sq = sq;
+        var pc = chess.get(sq);
+        el.setAttribute("aria-label", sq + (pc ? " " + (pc.color === "w" ? "hvit " : "svart ") + pieceName(pc.type) : ""));
+        if (last && (last.fra === sq || last.til === sq)) el.classList.add("last");
+        if (ui.selected === sq) el.classList.add("sel");
+        if (kingInCheck === sq) el.classList.add("check");
+        if (drag && drag.dragging && drag.from === sq) el.classList.add("dragfrom");
+        if (pc) {
+          var span = document.createElement("span");
+          span.className = "piece " + pc.color;
+          span.textContent = GLYPH[pc.type] + VS;
+          el.appendChild(span);
+        }
+        var target = ui.targets.find(function (m) { return m.to === sq; });
+        if (target) {
+          var h = document.createElement("span");
+          h.className = "hint" + (pc || target.flags.indexOf("e") >= 0 ? " cap" : "");
+          el.appendChild(h);
+          el.classList.add("clickable");
+        } else if (movable && pc && pc.color === chess.turn()) {
+          el.classList.add("clickable");
+        }
+        if (ri === 7) {
+          var cf = document.createElement("span");
+          cf.className = "coord file"; cf.textContent = FILES[f];
+          el.appendChild(cf);
+        }
+        if (fi === 0) {
+          var cr = document.createElement("span");
+          cr.className = "coord rank"; cr.textContent = r;
+          el.appendChild(cr);
+        }
+        el.addEventListener("click", function (e) { if (e.detail === 0) onSquare(sq); });
+        board.appendChild(el);
+      });
+    });
+  }
+
+  function renderBars() {
+    var top = $("barTop"), bottom = $("barBottom");
+    if (!cur) { top.innerHTML = ""; bottom.innerHTML = ""; return; }
+    var topColor = ui.flipped ? "w" : "b";
+    fillBar(top, topColor);
+    fillBar(bottom, topColor === "w" ? "b" : "w");
+  }
+
+  function fillBar(el, color) {
+    el.innerHTML = "";
+    var name = nameOf(color), pid = idOf(color);
+    var left = document.createElement("div");
+    left.className = "name";
+    var dot = document.createElement("span");
+    dot.className = "dot " + color;
+    left.appendChild(dot);
+    left.appendChild(document.createTextNode(name + (pid === me.id ? " (deg)" : "")));
+    if (!isOver() && chess.turn() === color) {
+      var tm = document.createElement("span");
+      tm.className = "turnmark"; tm.textContent = "i trekket";
+      left.appendChild(tm);
+    }
+    var right = document.createElement("div");
+    var used = usedToday(pid), max = cur.parti.trekk_per_dag;
+    var stamps = document.createElement("div");
+    stamps.className = "stamps";
+    stamps.setAttribute("aria-label", Math.max(0, max - used) + " av " + max + " trekk igjen i dag");
+    for (var i = 0; i < max; i++) {
+      var s = document.createElement("span");
+      s.className = "stamp" + (i < used ? " used" : "");
+      stamps.appendChild(s);
+    }
+    var info = document.createElement("div");
+    info.className = "stampinfo";
+    info.textContent = Math.max(0, max - used) + " av " + max + " trekk igjen i dag";
+    right.appendChild(stamps); right.appendChild(info);
+    el.appendChild(left); el.appendChild(right);
+  }
+
+  function showStatus(text, kind) {
+    var el = $("status");
+    el.className = "status" + (kind ? " " + kind : "");
+    el.textContent = text;
+  }
+
+  function renderStatus() {
+    if (!cur) {
+      showStatus(players.length ? "Start et parti mot en av de andre spillerne." : "Det er ingen andre spillere ennå. Når noen har logget inn og valgt navn, kan du starte et parti.");
+      return;
+    }
+    if (isOver()) { showStatus(resultText(), "good"); return; }
+    var check = chess.in_check() ? "Sjakk! " : "";
+    var nextName = nameOf(chess.turn());
+    var kind = chess.in_check() ? "alert" : "";
+    if (myColor() !== chess.turn()) { showStatus(check + "Venter på at " + nextName + " skal trekke.", kind); return; }
+    if (usedToday(me.id) >= cur.parti.trekk_per_dag) {
+      showStatus(check + "Du har brukt dagens " + cur.parti.trekk_per_dag + " trekk i dette partiet. Neste trekk kan gjøres i morgen.", "alert");
+      return;
+    }
+    showStatus(check + "Din tur. Dra en brikke, eller trykk på den og deretter på feltet den skal til.", kind);
+  }
+
+  function renderMoves() {
+    var el = $("moves");
+    el.innerHTML = "";
+    var hist = cur ? cur.trekk.map(function (m) { return m.san; }) : [];
+    if (!hist.length) {
+      var p = document.createElement("p");
+      p.className = "empty"; p.style.gridColumn = "1 / -1";
+      p.textContent = "Ingen trekk ennå.";
+      el.appendChild(p);
+      return;
+    }
+    for (var i = 0; i < hist.length; i += 2) {
+      add("n", (i / 2 + 1) + ".");
+      add("", hist[i]);
+      add("", hist[i + 1] || "");
+    }
+    el.scrollTop = el.scrollHeight;
+    function add(cls, txt) {
+      var s = document.createElement("span");
+      if (cls) s.className = cls;
+      s.textContent = txt;
+      el.appendChild(s);
+    }
+  }
+
+  function renderDraw() {
+    var box = $("drawActions");
+    box.innerHTML = "";
+    if (!cur || isOver() || !myColor()) return;
+    var offer = cur.parti.remis_tilbud;
+    var opp = nameOf(myColor() === "w" ? "b" : "w");
+
+    function info(t) {
+      var s = document.createElement("span"); s.className = "info"; s.textContent = t; box.appendChild(s);
+    }
+    function btn(t, handling, primary) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "btn" + (primary ? " primary" : ""); b.textContent = t;
+      b.disabled = busy;
+      b.addEventListener("click", function () { act("sjakk_remis", { p_handling: handling }); });
+      box.appendChild(b);
+    }
+    if (!offer) { btn("Tilby remis", "tilby"); return; }
+    if (offer === me.id) {
+      info("Du har tilbudt remis. Venter på svar fra " + opp + ".");
+      btn("Trekk tilbake tilbudet", "trekk_tilbake");
+    } else {
+      info(opp + " tilbyr remis.");
+      btn("Godta remis", "godta", true);
+      btn("Avslå", "avslå");
+    }
+  }
+
+  /* ---------- Handlinger ---------- */
+  function act(fn, extra) {
+    if (!cur || busy) return;
+    busy = true; renderBoardArea();
+    var args = Object.assign({ p_kode: code, p_parti: cur.parti.id }, extra || {});
+    var id = cur.parti.id;
+    rpc(fn, args).then(function () {
+      busy = false;
+      return Promise.all([loadGame(id, true), refreshList()]);
+    }).catch(function (e) {
+      busy = false;
+      return loadGame(id, true).then(function () { handleError(e); }, function () { handleError(e); });
+    });
+  }
+
+  function refreshList() {
+    return rpc("sjakk_mine_partier", { p_kode: code }).then(function (r) { games = r || []; renderGameList(); });
+  }
+
+  function onSquare(sq) {
+    if (!canMove()) return;
+    var target = ui.targets.find(function (m) { return m.to === sq; });
+    if (ui.selected && target) {
+      if (target.flags.indexOf("p") >= 0) { askPromotion(ui.selected, sq); return; }
+      doMove(ui.selected, sq, undefined);
+      return;
+    }
+    var pc = chess.get(sq);
+    if (pc && pc.color === chess.turn() && ui.selected !== sq) {
+      ui.selected = sq;
+      ui.targets = chess.moves({ square: sq, verbose: true });
+    } else {
+      ui.selected = null; ui.targets = [];
+    }
+    renderBoard();
+  }
+
+  function doMove(from, to, promotion) {
+    if (!canMove()) return;
+    var nr = cur.trekk.length + 1;
+    var m = chess.move({ from: from, to: to, promotion: promotion });
+    if (!m) return;
+
+    var resultat = null, avslutning = null;
+    if (chess.in_checkmate()) { resultat = m.color === "w" ? "hvit_vant" : "svart_vant"; avslutning = "sjakkmatt"; }
+    else if (chess.in_stalemate()) { resultat = "remis"; avslutning = "patt"; }
+    else if (chess.in_threefold_repetition()) { resultat = "remis"; avslutning = "trefoldig gjentakelse"; }
+    else if (chess.insufficient_material()) { resultat = "remis"; avslutning = "utilstrekkelig materiell"; }
+    else if (chess.in_draw()) { resultat = "remis"; avslutning = "50-trekksregelen"; }
+
+    // Vis trekket med en gang, og bekreft det mot serveren
+    cur.trekk.push({ nr: nr, fra: from, til: to, forvandling: promotion || null, san: m.san, spiller_id: me.id, dato: cur.i_dag });
+    ui.selected = null; ui.targets = [];
+    busy = true;
+    renderBoardArea();
+    showStatus("Lagrer trekket …");
+
+    var id = cur.parti.id;
+    rpc("sjakk_gjor_trekk", {
+      p_kode: code, p_parti: id, p_nr: nr, p_fra: from, p_til: to,
+      p_forvandling: promotion || null, p_san: m.san, p_resultat: resultat, p_avslutning: avslutning
+    }).then(function () {
+      busy = false;
+      return Promise.all([loadGame(id, true), refreshList()]);
+    }).catch(function (e) {
+      busy = false;
+      return loadGame(id, true).then(function () { handleError(e); }, function () { handleError(e); });
+    });
+  }
+
+  function askPromotion(from, to) {
+    var box = $("promoChoices");
+    box.innerHTML = "";
+    var color = chess.turn();
+    ["q", "r", "b", "n"].forEach(function (t) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("aria-label", pieceName(t));
+      var s = document.createElement("span");
+      s.className = "piece " + color; s.textContent = GLYPH[t] + VS;
+      b.appendChild(s);
+      b.addEventListener("click", function () {
+        $("promoOverlay").classList.remove("open");
+        doMove(from, to, t);
+      });
+      box.appendChild(b);
+    });
+    $("promoOverlay").classList.add("open");
+    box.querySelector("button").focus();
+  }
+  $("promoOverlay").addEventListener("click", function (e) {
+    if (e.target === this) this.classList.remove("open");
+  });
+
+  /* ---------- Dra og slipp ---------- */
+  var boardEl = $("board");
+
+  function sqFromPoint(x, y) {
+    var el = document.elementFromPoint(x, y);
+    var s = el && el.closest ? el.closest(".sq") : null;
+    return s && boardEl.contains(s) ? s.dataset.sq : null;
+  }
+
+  boardEl.addEventListener("pointerdown", function (e) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    var s = e.target.closest(".sq");
+    if (!s || !canMove()) return;
+    e.preventDefault();
+    var sq = s.dataset.sq;
+    var pc = chess.get(sq);
+    if (pc && pc.color === chess.turn()) {
+      var was = ui.selected === sq;
+      ui.selected = sq;
+      ui.targets = chess.moves({ square: sq, verbose: true });
+      drag = { from: sq, x: e.clientX, y: e.clientY, dragging: false, was: was,
+               size: s.getBoundingClientRect().width, type: pc.type, color: pc.color };
+      try { boardEl.setPointerCapture(e.pointerId); } catch (err) { /* ikke kritisk */ }
+      renderBoard();
+    } else {
+      onSquare(sq);
+    }
+  });
+
+  boardEl.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    if (!drag.dragging) {
+      if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) < 6) return;
+      drag.dragging = true;
+      ghost = document.createElement("span");
+      ghost.className = "ghost piece " + drag.color;
+      ghost.textContent = GLYPH[drag.type] + VS;
+      ghost.style.fontSize = Math.round(drag.size * 0.9) + "px";
+      document.body.appendChild(ghost);
+      var src = boardEl.querySelector('[data-sq="' + drag.from + '"]');
+      if (src) src.classList.add("dragfrom");
+    }
+    ghost.style.left = e.clientX + "px";
+    ghost.style.top = e.clientY + "px";
+  });
+
+  function endDrag(e, cancelled) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    if (ghost) { ghost.remove(); ghost = null; }
+    if (d.dragging) {
+      var to = cancelled ? null : sqFromPoint(e.clientX, e.clientY);
+      var legal = to && ui.targets.some(function (m) { return m.to === to; });
+      if (legal) { onSquare(to); return; }
+      renderBoard();
+      return;
+    }
+    if (d.was) { ui.selected = null; ui.targets = []; renderBoard(); }
+  }
+  boardEl.addEventListener("pointerup", function (e) { endDrag(e, false); });
+  boardEl.addEventListener("pointercancel", function (e) { endDrag(e, true); });
+
+  /* ---------- Knapper ---------- */
+  $("loginBtn").addEventListener("click", function () {
+    var c = $("codeInput").value.trim();
+    if (!c) { $("loginErr").textContent = "Skriv inn koden du har fått."; return; }
+    tryLogin(c, false);
+  });
+  $("codeInput").addEventListener("keydown", function (e) { if (e.key === "Enter") $("loginBtn").click(); });
+
+  $("saveNameBtn").addEventListener("click", function () {
+    var n = $("nameInput").value.trim();
+    if (n.length < 2) { $("nameErr").textContent = "Navnet må ha minst 2 tegn."; return; }
+    $("saveNameBtn").disabled = true;
+    rpc("sjakk_sett_navn", { p_kode: code, p_navn: n }).then(function (res) {
+      me = res; enterApp();
+    }).catch(function (e) {
+      $("nameErr").textContent = e.message;
+    }).then(function () { $("saveNameBtn").disabled = false; });
+  });
+  $("nameInput").addEventListener("keydown", function (e) { if (e.key === "Enter") $("saveNameBtn").click(); });
+  $("cancelNameBtn").addEventListener("click", enterApp);
+  $("renameBtn").addEventListener("click", function () { askName(true); });
+
+  $("logoutBtn").addEventListener("click", function () {
+    if (!confirm("Logge ut på denne enheten? Du trenger koden for å logge inn igjen.")) return;
+    writeCode(null); code = null; me = null; cur = null; games = []; lastSig = "";
+    startLogin("");
+  });
+
+  $("startGame").addEventListener("click", function () {
+    var opp = $("opponent").value;
+    var lim = parseInt($("newLimit").value, 10);
+    var msg = $("newGameMsg");
+    if (!opp) { msg.textContent = "Velg en motstander."; return; }
+    if (!isFinite(lim) || lim < 1 || lim > 99) { msg.textContent = "Velg mellom 1 og 99 trekk per dag."; return; }
+    $("startGame").disabled = true;
+    msg.textContent = "Starter parti …";
+    rpc("sjakk_nytt_parti", { p_kode: code, p_motstander: opp, p_trekk_per_dag: lim }).then(function (res) {
+      msg.textContent = res.jeg_hvit ? "Du fikk hvit og starter." : "Du fikk svart. Motstanderen starter.";
+      return loadGame(res.id, true).then(refreshList);
+    }).catch(function (e) {
+      msg.textContent = e.message;
+    }).then(function () { $("startGame").disabled = !players.length; });
+  });
+
+  $("flip").addEventListener("click", function () { ui.flipped = !ui.flipped; renderBoard(); renderBars(); });
+
+  $("resign").addEventListener("click", function () {
+    if (!cur || isOver() || !myColor()) return;
+    if (!confirm("Vil du gi opp dette partiet?")) return;
+    act("sjakk_gi_opp", {});
+  });
+
+  /* ---------- Oppstart ---------- */
+  if (typeof Chess === "undefined") {
+    show("loginView");
+    $("loginErr").textContent = "Klarte ikke å laste sjakkreglene. Sjekk nettforbindelsen og last siden på nytt.";
+    $("loginBtn").disabled = true;
+    return;
+  }
+  chess = new Chess();
+  var saved = readCode();
+  if (saved) tryLogin(saved, true); else startLogin("");
+})();
+</script>
+</body>
+</html>
